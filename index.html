@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Console Network</title>
+    <style>
+        body { margin: 0; font-family: monospace; background: #0f0f0f; color: #b3b3b3; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { width: 100%; max-width: 420px; padding: 20px; box-sizing: border-box; }
+        .hidden { display: none !important; }
+        .box { background: #181818; padding: 25px; border-radius: 6px; border: 1px solid #282828; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        h2 { margin-top: 0; font-size: 1.2rem; text-align: center; color: #ff7300; letter-spacing: 1px; }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 4px; border: 1px solid #333; background: #222; color: #fff; box-sizing: border-box; font-family: monospace; }
+        input:focus { border-color: #ff7300; outline: none; }
+        button { background: #ff7300; border: none; color: #000; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #e06500; }
+        .chat-box { background: #141414; border: 1px solid #282828; border-radius: 6px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { padding: 12px 15px; background: #1e1e1e; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #282828; }
+        #user-tag { font-size: 0.85rem; font-weight: bold; color: #ff7300; }
+        #logout-btn { width: auto; margin: 0; padding: 6px 12px; background: #c92a2a; color: #fff; font-size: 0.8rem; }
+        #logout-btn:hover { background: #a61e1e; }
+        .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0d0d0d; }
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; font-size: 0.9rem; }
+        .msg.me { background: #ff7300; color: #000; align-self: flex-end; border-bottom-right-radius: 1px; }
+        .msg.other { background: #222; color: #e0e0e0; align-self: flex-start; border-bottom-left-radius: 1px; border: 1px solid #2c2c2c; }
+        .sender { display: block; font-size: 0.7rem; color: #777; margin-bottom: 4px; font-weight: bold; }
+        .msg.me .sender { color: #553000; }
+        .input-area { display: flex; border-top: 1px solid #282828; padding: 8px; background: #181818; }
+        .input-area input { flex: 1; margin: 0; background: #101010; }
+        .input-area button { width: auto; margin: 0; margin-left: 8px; padding: 0 20px; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen" class="container">
+        <div class="box">
+            <h2>SYSTEM CONFIG LOG</h2>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Terminal ID" required>
+                <input type="password" id="password" placeholder="Access Code" required>
+                <button type="submit">AUTHENTICATE</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="chat-screen" class="container hidden">
+        <div class="chat-box">
+            <div class="chat-header">
+                <span id="user-tag">NODE: ACTIVE</span>
+                <button id="logout-btn">DISCONNECT</button>
+            </div>
+            
+            <div id="chat-messages" class="messages-area"></div>
+
+            <form id="chat-form" class="input-area">
+                <input type="text" id="message-input" placeholder="Enter logs..." autocomplete="off" required>
+                <button type="submit">EXECUTE</button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Linked with your active Realtime Database
+        const firebaseConfig = {
+            authDomain: "calcusmart-yqadw.firebaseapp.com",
+            databaseURL: "https://calcusmart-yqadw-default-rtdb.firebaseio.com/",
+            projectId: "calcusmart-yqadw"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const loginScreen = document.getElementById('login-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const loginForm = document.getElementById('login-form');
+        const chatForm = document.getElementById('chat-form');
+        const messagesArea = document.getElementById('chat-messages');
+        const userTag = document.getElementById('user-tag');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        let currentUser = "";
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userVal = document.getElementById('username').value.trim().toLowerCase();
+            const passVal = document.getElementById('password').value;
+            
+            // Backend dynamic lookup mapping
+            const email = `${userVal}@secureapp.com`;
+
+            try {
+                // Session isolation rules active
+                await setPersistence(auth, browserSessionPersistence);
+                await signInWithEmailAndPassword(auth, email, passVal);
+                
+                currentUser = userVal;
+                userTag.innerText = `SYS_NODE: ${currentUser.toUpperCase()}`;
+                
+                loginScreen.classList.add('hidden');
+                chatScreen.classList.remove('hidden');
+                
+                loadChats();
+            } catch (error) {
+                alert("Authentication Failed: Terminal Rejected.");
+            }
+        });
+
+        function loadChats() {
+            const messagesRef = ref(db, 'chats/main_session');
+            onValue(messagesRef, (snapshot) => {
+                messagesArea.innerHTML = "";
+                const data = snapshot.val();
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        const msg = data[key];
+                        const isMe = msg.sender === currentUser;
+                        
+                        const msgDiv = document.createElement('div');
+                        msgDiv.classList.add('msg', isMe ? 'me' : 'other');
+                        
+                        const senderName = msg.sender.toUpperCase();
+                        msgDiv.innerHTML = `<span class="sender">${senderName}</span><p style="margin:0;">${msg.text}</p>`;
+                        
+                        messagesArea.appendChild(msgDiv);
+                    });
+                    messagesArea.scrollTop = messagesArea.scrollHeight;
+                }
+            });
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const inputEl = document.getElementById('message-input');
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            await push(ref(db, 'chats/main_session'), {
+                sender: currentUser,
+                text: text,
+                timestamp: serverTimestamp()
+            });
+
+            inputEl.value = "";
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            signOut(auth).then(() => { location.reload(); });
+        });
+    </script>
+</body>
+</html>
