@@ -2,11 +2,37 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Network Console</title>
     <style>
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0b141a; color: #e9edef; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .container { width: 100%; max-width: 450px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; background: #0b141a; }
+        /* Fixed mobile height and scrolling issues */
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: #0b141a; 
+            color: #e9edef; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        
+        /* Mobile-first container sizing */
+        .container { 
+            width: 100%; 
+            height: 100%; /* Fallback */
+            height: 100dvh; /* Dynamic viewport height for mobile keyboards */
+            display: flex; 
+            flex-direction: column; 
+            box-sizing: border-box; 
+            background: #0b141a; 
+        }
+        
+        /* Restrict width only on larger screens (desktop/tablet) */
+        @media (min-width: 450px) {
+            .container { max-width: 450px; border-left: 1px solid #222e35; border-right: 1px solid #222e35; }
+        }
+
         .hidden { display: none !important; }
         
         .login-box { background: #111b21; padding: 30px 25px; border-radius: 12px; border: 1px solid #222e35; box-shadow: 0 4px 20px rgba(0,0,0,0.6); margin: auto 20px; text-align: center; }
@@ -17,10 +43,10 @@
         .login-box button:hover { background: #008f72; }
         #error-log { color: #f15c6d; font-size: 0.85rem; margin-top: 12px; font-family: monospace; }
 
-        .chat-box { background: #0b141a; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        /* Chat layout */
+        .chat-box { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; }
         
-        /* WhatsApp Header with Subtitle Status */
-        .chat-header { padding: 10px 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 10; }
+        .chat-header { padding: 10px 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 10; flex-shrink: 0; }
         .user-info { display: flex; align-items: center; gap: 10px; }
         .avatar { width: 38px; height: 38px; border-radius: 50%; background: #00a884; display: flex; justify-content: center; align-items: center; color: #111b21; font-weight: bold; font-size: 1rem; }
         .header-text { display: flex; flex-direction: column; }
@@ -29,8 +55,8 @@
         #logout-btn { background: transparent; border: none; color: #aebac1; font-size: 0.9rem; cursor: pointer; padding: 6px 10px; border-radius: 4px; }
         #logout-btn:hover { background: rgba(255,255,255,0.05); color: #f15c6d; }
         
-        .messages-area { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-color: #0b141a; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0); background-size: 24px 24px; }
-        .msg { max-width: 80%; padding: 8px 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+        .messages-area { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-color: #0b141a; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0); background-size: 24px 24px; overscroll-behavior: contain; }
+        .msg { max-width: 85%; padding: 8px 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
         
         .msg.me { background: #005c4b; color: #e9edef; align-self: flex-end; border-radius: 8px 0px 8px 8px; }
         .msg.other { background: #202c33; color: #e9edef; align-self: flex-start; border-radius: 0px 8px 8px 8px; }
@@ -38,10 +64,10 @@
         .sender { display: block; font-size: 0.75rem; font-weight: bold; margin-bottom: 3px; color: #00a884; }
         .msg.me .sender { color: #53bdeb; }
         
-        .input-area { display: flex; align-items: center; padding: 10px; background: #202c33; gap: 8px; box-sizing: border-box; }
-        .input-area input { flex: 1; padding: 11px 16px; border-radius: 22px; border: none; background: #2a3942; color: #fff; font-size: 0.95rem; box-sizing: border-box; }
+        .input-area { display: flex; align-items: center; padding: 8px 10px; background: #202c33; gap: 8px; box-sizing: border-box; flex-shrink: 0; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+        .input-area input { flex: 1; padding: 12px 16px; border-radius: 24px; border: none; background: #2a3942; color: #fff; font-size: 1rem; box-sizing: border-box; }
         .input-area input:focus { outline: none; }
-        .input-area button { background: #00a884; border: none; width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #111b21; fill: #111b21; transition: transform 0.1s; flex-shrink: 0; }
+        .input-area button { background: #00a884; border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #111b21; fill: #111b21; transition: transform 0.1s; flex-shrink: 0; }
         .input-area button:active { transform: scale(0.9); }
     </style>
 </head>
@@ -49,11 +75,11 @@
 
     <div id="login-screen" class="container">
         <div class="login-box">
-            <h2>SECURE NODE PORTAL</h2>
+            <h2>Enter Name or Passowrd</h2>
             <form id="login-form">
-                <input type="text" id="username" placeholder="Terminal ID" autocomplete="off" required>
-                <input type="password" id="password" placeholder="Access Code" required>
-                <button type="submit">AUTHENTICATE</button>
+                <input type="text" id="username" placeholder="Enter Your Name" autocomplete="off" required>
+                <input type="password" id="password" placeholder="Enter Your password" required>
+                <button type="submit">Login</button>
             </form>
             <div id="error-log"></div>
         </div>
@@ -69,7 +95,7 @@
                         <span id="typing-status"></span>
                     </div>
                 </div>
-                <button id="logout-btn">Disconnect</button>
+                <button id="logout-btn">Log Out</button>
             </div>
             
             <div id="chat-messages" class="messages-area"></div>
@@ -115,6 +141,14 @@
         let currentUser = "";
         let typingTimeout = null;
 
+        // Auto-scroll function
+        function scrollToBottom() {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        // Adjust scroll when keyboard opens on mobile
+        window.addEventListener('resize', scrollToBottom);
+
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             errorLog.innerText = "Authenticating...";
@@ -159,25 +193,34 @@
                         const msgDiv = document.createElement('div');
                         msgDiv.classList.add('msg', isMe ? 'me' : 'other');
                         
-                        const senderName = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
-                        msgDiv.innerHTML = `<span class="sender">${senderName}</span><p style="margin:0; font-size:0.95rem;">${msg.text}</p>`;
+                        // SECURE XSS FIX: Use textContent instead of innerHTML
+                        const senderSpan = document.createElement('span');
+                        senderSpan.classList.add('sender');
+                        senderSpan.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
+                        
+                        const textP = document.createElement('p');
+                        textP.style.margin = '0';
+                        textP.style.fontSize = '0.95rem';
+                        textP.textContent = msg.text;
+                        
+                        msgDiv.appendChild(senderSpan);
+                        msgDiv.appendChild(textP);
                         
                         messagesArea.appendChild(msgDiv);
                     });
-                    messagesArea.scrollTop = messagesArea.scrollHeight;
+                    scrollToBottom();
                 }
             });
         }
 
         // --- TYPING INDICATOR LOGIC ---
-        // 1. Input box par typing track karna
         messageInput.addEventListener('input', () => {
             setTypingStatus(true);
             
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 setTypingStatus(false);
-            }, 2000); // Agar 2 seconds tak kuch type nahi kiya toh status off
+            }, 2000); 
         });
 
         async function setTypingStatus(isTyping) {
@@ -189,7 +232,6 @@
             });
         }
 
-        // 2. Dusre user ka typing status live sunna
         function listenToTyping() {
             const typingRef = ref(db, 'chats/typing_status');
             onValue(typingRef, (snapshot) => {
@@ -217,7 +259,7 @@
             const text = messageInput.value.trim();
             if (!text) return;
 
-            setTypingStatus(false); // Send hote hi typing band
+            setTypingStatus(false); 
 
             await push(ref(db, 'chats/main_session'), {
                 sender: currentUser,
@@ -227,6 +269,8 @@
             });
 
             messageInput.value = "";
+            // Ensure focus remains for continuous chatting
+            messageInput.focus();
         });
 
         logoutBtn.addEventListener('click', async () => {
