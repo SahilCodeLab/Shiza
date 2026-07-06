@@ -75,7 +75,7 @@
 
     <div id="login-screen" class="container">
         <div class="login-box">
-            <h2>Enter Name or Passowrd</h2>
+            <h2>Enter Name or Password</h2>
             <form id="login-form">
                 <input type="text" id="username" placeholder="Enter Your Name" autocomplete="off" required>
                 <input type="password" id="password" placeholder="Enter Your password" required>
@@ -165,9 +165,14 @@
             if ((userVal === 'sahil' && passVal === 'sahil1234') || (userVal === 'shazu' && passVal === 'shazu1234')) {
                 currentUser = userVal;
                 
-                const capitalized = currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
-                userTag.innerText = capitalized;
-                userAvatar.innerText = capitalized.charAt(0);
+                // LOGIC UPDATE: Dusre user ka naam nikalna
+                let otherUser = (currentUser === 'sahil') ? 'shazu' : 'sahil';
+                
+                // Us dusre user ke naam ko capitalize karna header ke liye
+                const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
+                
+                userTag.innerText = capitalizedOther;
+                userAvatar.innerText = capitalizedOther.charAt(0);
                 
                 loginScreen.classList.add('hidden');
                 chatScreen.classList.remove('hidden');
