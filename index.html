@@ -108,9 +108,10 @@
                 
                 loadChats();
             } catch (error) {
-                alert("Authentication Failed: Terminal Rejected.");
-            }
-        });
+    // Isse exact screen par error code likha hua aa jayega
+    alert("Error: " + error.code + " -> " + error.message);
+        }
+        
 
         function loadChats() {
             const messagesRef = ref(db, 'chats/main_session');
