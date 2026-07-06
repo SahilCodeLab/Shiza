@@ -3,68 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Console Network</title>
+    <title>Network Console</title>
     <style>
-        body { margin: 0; font-family: monospace; background: #0f0f0f; color: #b3b3b3; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        .container { width: 100%; max-width: 420px; padding: 20px; box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #0b141a; color: #e9edef; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        .container { width: 100%; max-width: 450px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; background: #0b141a; }
         .hidden { display: none !important; }
-        .box { background: #181818; padding: 25px; border-radius: 6px; border: 1px solid #282828; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        h2 { margin-top: 0; font-size: 1.2rem; text-align: center; color: #ff7300; letter-spacing: 1px; }
-        input, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 4px; border: 1px solid #333; background: #222; color: #fff; box-sizing: border-box; font-family: monospace; }
-        input:focus { border-color: #ff7300; outline: none; }
-        button { background: #ff7300; border: none; color: #000; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #e06500; }
-        .chat-box { background: #141414; border: 1px solid #282828; border-radius: 6px; height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
-        .chat-header { padding: 12px 15px; background: #1e1e1e; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #282828; }
-        #user-tag { font-size: 0.85rem; font-weight: bold; color: #ff7300; }
-        #logout-btn { width: auto; margin: 0; padding: 6px 12px; background: #c92a2a; color: #fff; font-size: 0.8rem; }
-        #logout-btn:hover { background: #a61e1e; }
-        .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #0d0d0d; }
-        .msg { max-width: 75%; padding: 10px 14px; border-radius: 8px; line-height: 1.4; word-wrap: break-word; font-size: 0.9rem; }
-        .msg.me { background: #ff7300; color: #000; align-self: flex-end; border-bottom-right-radius: 1px; }
-        .msg.other { background: #222; color: #e0e0e0; align-self: flex-start; border-bottom-left-radius: 1px; border: 1px solid #2c2c2c; }
-        .sender { display: block; font-size: 0.7rem; color: #777; margin-bottom: 4px; font-weight: bold; }
-        .msg.me .sender { color: #553000; }
-        .input-area { display: flex; border-top: 1px solid #282828; padding: 8px; background: #181818; }
-        .input-area input { flex: 1; margin: 0; background: #101010; }
-        .input-area button { width: auto; margin: 0; margin-left: 8px; padding: 0 20px; }
+        
+        .login-box { background: #111b21; padding: 30px 25px; border-radius: 12px; border: 1px solid #222e35; box-shadow: 0 4px 20px rgba(0,0,0,0.6); margin: auto 20px; text-align: center; }
+        .login-box h2 { margin-top: 0; font-size: 1.3rem; color: #00a884; letter-spacing: 1px; font-family: monospace; }
+        .login-box input { width: 100%; padding: 12px; margin: 12px 0; border-radius: 8px; border: 1px solid #2a3942; background: #202c33; color: #fff; box-sizing: border-box; font-size: 0.95rem; }
+        .login-box input:focus { border-color: #00a884; outline: none; }
+        .login-box button { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; background: #00a884; border: none; color: #111b21; font-weight: bold; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; }
+        .login-box button:hover { background: #008f72; }
+        #error-log { color: #f15c6d; font-size: 0.85rem; margin-top: 12px; font-family: monospace; }
+
+        .chat-box { background: #0b141a; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        
+        /* WhatsApp Header with Subtitle Status */
+        .chat-header { padding: 10px 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 10; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 38px; height: 38px; border-radius: 50%; background: #00a884; display: flex; justify-content: center; align-items: center; color: #111b21; font-weight: bold; font-size: 1rem; }
+        .header-text { display: flex; flex-direction: column; }
+        #user-tag { font-size: 1rem; font-weight: 500; color: #e9edef; }
+        #typing-status { font-size: 0.75rem; color: #00a884; font-weight: normal; margin-top: 2px; min-height: 14px; }
+        #logout-btn { background: transparent; border: none; color: #aebac1; font-size: 0.9rem; cursor: pointer; padding: 6px 10px; border-radius: 4px; }
+        #logout-btn:hover { background: rgba(255,255,255,0.05); color: #f15c6d; }
+        
+        .messages-area { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background-color: #0b141a; background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 0); background-size: 24px 24px; }
+        .msg { max-width: 80%; padding: 8px 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); }
+        
+        .msg.me { background: #005c4b; color: #e9edef; align-self: flex-end; border-radius: 8px 0px 8px 8px; }
+        .msg.other { background: #202c33; color: #e9edef; align-self: flex-start; border-radius: 0px 8px 8px 8px; }
+        
+        .sender { display: block; font-size: 0.75rem; font-weight: bold; margin-bottom: 3px; color: #00a884; }
+        .msg.me .sender { color: #53bdeb; }
+        
+        .input-area { display: flex; align-items: center; padding: 10px; background: #202c33; gap: 8px; box-sizing: border-box; }
+        .input-area input { flex: 1; padding: 11px 16px; border-radius: 22px; border: none; background: #2a3942; color: #fff; font-size: 0.95rem; box-sizing: border-box; }
+        .input-area input:focus { outline: none; }
+        .input-area button { background: #00a884; border: none; width: 42px; height: 42px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #111b21; fill: #111b21; transition: transform 0.1s; flex-shrink: 0; }
+        .input-area button:active { transform: scale(0.9); }
     </style>
 </head>
 <body>
 
     <div id="login-screen" class="container">
-        <div class="box">
-            <h2>SYSTEM CONFIG LOG</h2>
+        <div class="login-box">
+            <h2>SECURE NODE PORTAL</h2>
             <form id="login-form">
-                <input type="text" id="username" placeholder="Terminal ID" required>
+                <input type="text" id="username" placeholder="Terminal ID" autocomplete="off" required>
                 <input type="password" id="password" placeholder="Access Code" required>
                 <button type="submit">AUTHENTICATE</button>
             </form>
+            <div id="error-log"></div>
         </div>
     </div>
 
     <div id="chat-screen" class="container hidden">
         <div class="chat-box">
             <div class="chat-header">
-                <span id="user-tag">NODE: ACTIVE</span>
-                <button id="logout-btn">DISCONNECT</button>
+                <div class="user-info">
+                    <div id="user-avatar" class="avatar">U</div>
+                    <div class="header-text">
+                        <span id="user-tag">Secure Room</span>
+                        <span id="typing-status"></span>
+                    </div>
+                </div>
+                <button id="logout-btn">Disconnect</button>
             </div>
             
             <div id="chat-messages" class="messages-area"></div>
 
             <form id="chat-form" class="input-area">
-                <input type="text" id="message-input" placeholder="Enter logs..." autocomplete="off" required>
-                <button type="submit">EXECUTE</button>
+                <input type="text" id="message-input" placeholder="Type a message" autocomplete="off" required>
+                <button type="submit">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M1.101 21.757L23.8 12.028 1.101 2.3 l.011 7.912 13.623 1.816-13.623 1.817z"></path></svg>
+                </button>
             </form>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, signOut, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, push, set, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Tumhari live active credentials
         const firebaseConfig = {
             apiKey: "AIzaSyAii2t4g5DuJ7-BLm8v9-syyrtOmyWK8_8",
             authDomain: "sr-login-cef1c.firebaseapp.com",
@@ -76,7 +98,6 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
         const db = getDatabase(app);
 
         const loginScreen = document.getElementById('login-screen');
@@ -85,33 +106,44 @@
         const chatForm = document.getElementById('chat-form');
         const messagesArea = document.getElementById('chat-messages');
         const userTag = document.getElementById('user-tag');
+        const userAvatar = document.getElementById('user-avatar');
         const logoutBtn = document.getElementById('logout-btn');
+        const errorLog = document.getElementById('error-log');
+        const messageInput = document.getElementById('message-input');
+        const typingStatusText = document.getElementById('typing-status');
 
         let currentUser = "";
+        let typingTimeout = null;
 
-        loginForm.addEventListener('submit', async (e) => {
+        loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const userVal = document.getElementById('username').value.trim().toLowerCase();
-            const passVal = document.getElementById('password').value;
-            const email = `${userVal}@secureapp.com`;
+            errorLog.innerText = "Authenticating...";
+            
+            let rawUser = document.getElementById('username').value.trim().toLowerCase();
+            const passVal = document.getElementById('password').value.trim();
 
-            try {
-                // Tab close hote hi automatic log out configuration active
-                await setPersistence(auth, browserSessionPersistence);
-                await signInWithEmailAndPassword(auth, email, passVal);
-                
+            if(rawUser.includes('@')) {
+                rawUser = rawUser.split('@')[0];
+            }
+            
+            const userVal = rawUser.replace(/\s+/g, '');
+
+            if ((userVal === 'sahil' && passVal === 'sahil1234') || (userVal === 'shazu' && passVal === 'shazu1234')) {
                 currentUser = userVal;
-                userTag.innerText = `SYS_NODE: ${currentUser.toUpperCase()}`;
+                
+                const capitalized = currentUser.charAt(0).toUpperCase() + currentUser.slice(1);
+                userTag.innerText = capitalized;
+                userAvatar.innerText = capitalized.charAt(0);
                 
                 loginScreen.classList.add('hidden');
                 chatScreen.classList.remove('hidden');
                 
                 loadChats();
-            } catch (error) {
-    // Isse exact screen par error code likha hua aa jayega
-    alert("Error: " + error.code + " -> " + error.message);
-        }
-        
+                listenToTyping();
+            } else {
+                errorLog.innerText = "FAIL: auth/invalid-credential";
+            }
+        });
 
         function loadChats() {
             const messagesRef = ref(db, 'chats/main_session');
@@ -121,13 +153,14 @@
                 if (data) {
                     Object.keys(data).forEach(key => {
                         const msg = data[key];
+                        if(key === 'secret_key') return;
+
                         const isMe = msg.sender === currentUser;
-                        
                         const msgDiv = document.createElement('div');
                         msgDiv.classList.add('msg', isMe ? 'me' : 'other');
                         
-                        const senderName = msg.sender.toUpperCase();
-                        msgDiv.innerHTML = `<span class="sender">${senderName}</span><p style="margin:0;">${msg.text}</p>`;
+                        const senderName = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
+                        msgDiv.innerHTML = `<span class="sender">${senderName}</span><p style="margin:0; font-size:0.95rem;">${msg.text}</p>`;
                         
                         messagesArea.appendChild(msgDiv);
                     });
@@ -136,23 +169,69 @@
             });
         }
 
+        // --- TYPING INDICATOR LOGIC ---
+        // 1. Input box par typing track karna
+        messageInput.addEventListener('input', () => {
+            setTypingStatus(true);
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                setTypingStatus(false);
+            }, 2000); // Agar 2 seconds tak kuch type nahi kiya toh status off
+        });
+
+        async function setTypingStatus(isTyping) {
+            if (!currentUser) return;
+            const statusRef = ref(db, `chats/typing_status/${currentUser}`);
+            await set(statusRef, {
+                isTyping: isTyping,
+                secret_key: "SahilCodeLabSecret2026"
+            });
+        }
+
+        // 2. Dusre user ka typing status live sunna
+        function listenToTyping() {
+            const typingRef = ref(db, 'chats/typing_status');
+            onValue(typingRef, (snapshot) => {
+                const data = snapshot.val();
+                let activeTyper = "";
+                
+                if (data) {
+                    Object.keys(data).forEach(user => {
+                        if (user !== currentUser && data[user].isTyping === true) {
+                            activeTyper = user.charAt(0).toUpperCase() + user.slice(1);
+                        }
+                    });
+                }
+                
+                if (activeTyper) {
+                    typingStatusText.innerText = `${activeTyper} is typing...`;
+                } else {
+                    typingStatusText.innerText = "";
+                }
+            });
+        }
+
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const inputEl = document.getElementById('message-input');
-            const text = inputEl.value.trim();
+            const text = messageInput.value.trim();
             if (!text) return;
+
+            setTypingStatus(false); // Send hote hi typing band
 
             await push(ref(db, 'chats/main_session'), {
                 sender: currentUser,
                 text: text,
-                timestamp: serverTimestamp()
+                timestamp: serverTimestamp(),
+                secret_key: "SahilCodeLabSecret2026"
             });
 
-            inputEl.value = "";
+            messageInput.value = "";
         });
 
-        logoutBtn.addEventListener('click', () => {
-            signOut(auth).then(() => { location.reload(); });
+        logoutBtn.addEventListener('click', async () => {
+            await setTypingStatus(false);
+            location.reload();
         });
     </script>
 </body>
