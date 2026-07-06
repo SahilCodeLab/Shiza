@@ -64,11 +64,15 @@
         import { getAuth, signInWithEmailAndPassword, signOut, setPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getDatabase, ref, push, onValue, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // Linked with your active Realtime Database
+        // Tumhari live active credentials
         const firebaseConfig = {
-            authDomain: "calcusmart-yqadw.firebaseapp.com",
-            databaseURL: "https://calcusmart-yqadw-default-rtdb.firebaseio.com/",
-            projectId: "calcusmart-yqadw"
+            apiKey: "AIzaSyAii2t4g5DuJ7-BLm8v9-syyrtOmyWK8_8",
+            authDomain: "sr-login-cef1c.firebaseapp.com",
+            databaseURL: "https://sr-login-cef1c-default-rtdb.firebaseio.com",
+            projectId: "sr-login-cef1c",
+            storageBucket: "sr-login-cef1c.firebasestorage.app",
+            messagingSenderId: "998421619255",
+            appId: "1:998421619255:web:5f12b5c71ed93ac5c115b2"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -89,12 +93,10 @@
             e.preventDefault();
             const userVal = document.getElementById('username').value.trim().toLowerCase();
             const passVal = document.getElementById('password').value;
-            
-            // Backend dynamic lookup mapping
             const email = `${userVal}@secureapp.com`;
 
             try {
-                // Session isolation rules active
+                // Tab close hote hi automatic log out configuration active
                 await setPersistence(auth, browserSessionPersistence);
                 await signInWithEmailAndPassword(auth, email, passVal);
                 
