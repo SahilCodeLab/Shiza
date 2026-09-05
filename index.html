@@ -253,19 +253,15 @@
         let editingMsgKey = null;
         let heartbeatInterval = null;
         let isInitialLoad = true;
-        let isSendingMessage = false;
 
         let otherData = { lastActive: 0, lastSeen: null };
         let otherTyping = false;
 
-        function scrollToBottom(force = false) {
-            const isNearBottom = messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight < 150;
-            if (force || isNearBottom || isSendingMessage) {
-                messagesArea.scrollTo({
-                    top: messagesArea.scrollHeight,
-                    behavior: 'auto'
-                });
-            }
+        function scrollToBottom(smooth = false) {
+            messagesArea.scrollTo({
+                top: messagesArea.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
         }
 
         loginForm.addEventListener('submit', (e) => {
@@ -503,9 +499,9 @@
                             });
 
                             if (isInitialLoad) {
-                                scrollToBottom(true);
-                            } else {
                                 scrollToBottom(false);
+                            } else {
+                                scrollToBottom(true);
                             }
                         } else {
                             const textP = msgWrapper.querySelector('p');
@@ -538,7 +534,7 @@
                     });
 
                     if (isInitialLoad) {
-                        scrollToBottom(true);
+                        scrollToBottom(false);
                         isInitialLoad = false;
                     }
                 }
@@ -589,6 +585,7 @@
                 setReplyingTo(msgKey, msgData);
                 menu.remove();
             };
+            replyBtn.appendChild(replyBtnText); // handled natively via text
             menu.appendChild(replyBtn);
 
             msgDiv.appendChild(menu);
@@ -655,7 +652,6 @@
             const text = messageInput.value.trim();
             if (!text) return;
 
-            isSendingMessage = true;
             setTypingStatus(false); 
 
             if (editingMsgKey) {
@@ -684,14 +680,13 @@
             messageInput.style.height = 'auto';
             cancelTopBars();
             scrollToBottom(true);
-
-            // Removed messageInput.focus() to prevent keyboard flickering/closing issue entirely
-            setTimeout(() => {
-                isSendingMessage = false;
-            }, 50);
         }
 
-        sendBtn.addEventListener('click', handleSendMessage);
+        // CRITICAL FIX: pointerdown + e.preventDefault() stops the button from stealing focus from textarea
+        sendBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            handleSendMessage();
+        });
 
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
