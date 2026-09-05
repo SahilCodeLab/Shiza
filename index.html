@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Network Console</title>
+    <title> Shiza  Network</title>
     <style>
         html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; user-select: none; -webkit-user-select: none; }
         
@@ -244,6 +244,10 @@
         let typingTimeout = null;
         let replyingTo = null;
         let editingMsgKey = null;
+        let heartbeatInterval = null;
+
+        let otherData = { lastActive: 0, lastSeen: null };
+        let otherTyping = false;
 
         function scrollToBottom() {
             messagesArea.scrollTop = messagesArea.scrollHeight;
@@ -276,53 +280,76 @@
                 loginScreen.classList.add('hidden');
                 chatScreen.classList.remove('hidden');
                 
-                setupPresence();
+                startHeartbeat();
                 loadChats();
-                listenToTyping();
-                listenToOnlineStatus();
+                initStatusListeners();
             } else {
                 errorLog.innerText = "FAIL: Invalid username or password!";
             }
         });
 
-        function setupPresence() {
+        // 100% Stable Heartbeat System (No Glitches)
+        function startHeartbeat() {
             const userStatusRef = ref(db, `chats/presence/${currentUser}`);
-            if (currentUser === 'sahil') {
-                // Sahil ke liye lastSeen store nahi hoga, sirf online status dikhega
-                set(userStatusRef, { online: true });
-                onDisconnect(userStatusRef).set({ online: false });
-            } else {
-                // Shazu ke liye online status aur lastSeen dono store honge
-                set(userStatusRef, { online: true, lastSeen: serverTimestamp() });
-                onDisconnect(userStatusRef).set({ online: false, lastSeen: serverTimestamp() });
-            }
+            
+            const ping = () => {
+                set(userStatusRef, { 
+                    lastActive: serverTimestamp(),
+                    lastSeen: serverTimestamp() 
+                });
+            };
+
+            ping();
+            heartbeatInterval = setInterval(ping, 4000); // Har 4 second mein active ping jayega
+
+            onDisconnect(userStatusRef).set({ 
+                lastActive: 0, 
+                lastSeen: serverTimestamp() 
+            });
         }
 
-        function listenToOnlineStatus() {
+        function initStatusListeners() {
             const otherStatusRef = ref(db, `chats/presence/${otherUser}`);
             onValue(otherStatusRef, (snapshot) => {
                 const data = snapshot.val();
-                if (!data) return;
-
-                if (data.online === true) {
-                    onlineDot.classList.add('active');
-                    if (!typingStatusText.innerText.includes('typing')) {
-                        typingStatusText.innerText = "Online";
-                    }
-                } else {
-                    onlineDot.classList.remove('active');
-                    if (!typingStatusText.innerText.includes('typing')) {
-                        // Jab Sahil logged-in ho, tab use Shazu ka last seen dikhega
-                        if (currentUser === 'sahil' && data.lastSeen) {
-                            const lastSeenDate = new Date(data.lastSeen);
-                            const timeStr = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                            typingStatusText.innerText = `Last seen today at ${timeStr}`;
-                        } else {
-                            typingStatusText.innerText = "";
-                        }
-                    }
-                }
+                otherData = data || { lastActive: 0, lastSeen: null };
+                updateHeaderDisplay();
             });
+
+            const typingRef = ref(db, `chats/typing_status/${otherUser}`);
+            onValue(typingRef, (snapshot) => {
+                const data = snapshot.val();
+                otherTyping = data ? data.isTyping : false;
+                updateHeaderDisplay();
+            });
+
+            // Har second check karega ki samne wala active hai ya nahi
+            setInterval(updateHeaderDisplay, 1000);
+        }
+
+        function updateHeaderDisplay() {
+            const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
+            const now = Date.now();
+            
+            // Agar pichle 8 second ke andar ping aaya hai, toh matlab user online hai!
+            const isOnlineNow = (now - (otherData.lastActive || 0)) < 8000;
+
+            if (otherTyping) {
+                onlineDot.classList.add('active');
+                typingStatusText.innerText = "typing...";
+            } else if (isOnlineNow) {
+                onlineDot.classList.add('active');
+                typingStatusText.innerText = "Online";
+            } else {
+                onlineDot.classList.remove('active');
+                if (currentUser === 'sahil' && otherData.lastSeen) {
+                    const lastSeenDate = new Date(otherData.lastSeen);
+                    const timeStr = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    typingStatusText.innerText = `Last seen today at ${timeStr}`;
+                } else {
+                    typingStatusText.innerText = "";
+                }
+            }
         }
 
         function loadChats() {
@@ -471,7 +498,7 @@
             const emojiGrid = document.createElement('div');
             emojiGrid.classList.add('emoji-grid');
             
-            const emojisList = ['❤️', '🤗', '😂', '😚','😝','🫶'];
+            const emojisList = ['❤️', '👍', '😂', '🔥', '😢', '😍', '👏', '🙏', '🎉', '😡', '🤔', '😎', '✨', '💯', '🥳', '👀'];
             
             emojisList.forEach(emoji => {
                 const span = document.createElement('span');
@@ -569,24 +596,6 @@
             });
         }
 
-        function listenToTyping() {
-            const typingRef = ref(db, `chats/typing_status/${otherUser}`);
-            onValue(typingRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data && data.isTyping === true) {
-                    const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
-                    typingStatusText.innerText = `${capitalizedOther} is typing...`;
-                } else {
-                    const isOnlineActive = onlineDot.classList.contains('active');
-                    if (isOnlineActive) {
-                        typingStatusText.innerText = "Online";
-                    } else {
-                        typingStatusText.innerText = "";
-                    }
-                }
-            });
-        }
-
         async function handleSendMessage() {
             const text = messageInput.value.trim();
             if (!text) return;
@@ -631,13 +640,10 @@
         });
 
         logoutBtn.addEventListener('click', async () => {
+            clearInterval(heartbeatInterval);
             await setTypingStatus(false);
             const userStatusRef = ref(db, `chats/presence/${currentUser}`);
-            if (currentUser === 'sahil') {
-                await set(userStatusRef, { online: false });
-            } else {
-                await set(userStatusRef, { online: false, lastSeen: serverTimestamp() });
-            }
+            await set(userStatusRef, { lastActive: 0, lastSeen: serverTimestamp() });
             location.reload();
         });
     </script>
