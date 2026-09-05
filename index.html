@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> Shiza  Network</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+    <title>Network Console</title>
     <style>
-        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; user-select: none; -webkit-user-select: none; }
+        html, body { margin: 0; padding: 0; height: 100%; height: 100dvh; overflow: hidden; user-select: none; -webkit-user-select: none; }
         
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
@@ -24,10 +24,16 @@
             flex-direction: column; 
             box-sizing: border-box; 
             background: #0b141a; 
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
         }
         
         @media (min-width: 450px) {
-            .container { max-width: 450px; border-left: 1px solid #222e35; border-right: 1px solid #222e35; }
+            .container { max-width: 450px; margin: auto; border-left: 1px solid #222e35; border-right: 1px solid #222e35; }
         }
 
         .hidden { display: none !important; }
@@ -40,7 +46,7 @@
         .login-box button:hover { background: #008f72; }
         #error-log { color: #f15c6d; font-size: 0.85rem; margin-top: 12px; font-family: monospace; }
 
-        .chat-box { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; }
+        .chat-box { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; overflow: hidden; }
         
         .chat-header { padding: 10px 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 10; flex-shrink: 0; }
         .user-info { display: flex; align-items: center; gap: 10px; }
@@ -67,10 +73,11 @@
             background-position: center;
             background-repeat: no-repeat;
             overscroll-behavior: contain; 
+            -webkit-overflow-scrolling: touch;
         }
         
         .msg-wrapper { position: relative; display: flex; flex-direction: column; width: 100%; transition: transform 0.15s ease-out; touch-action: pan-y; }
-        .msg { max-width: 85%; padding: 8px 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); cursor: pointer; user-select: text; -webkit-user-select: text; }
+        .msg { max-width: 85%; padding: 8px 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); cursor: pointer; user-select: text; -webkit-user-select: text; transition: background-color 0.4s; }
         
         .msg-wrapper.me { align-items: flex-end; }
         .msg-wrapper.other { align-items: flex-start; }
@@ -81,7 +88,7 @@
         .sender { display: block; font-size: 0.75rem; font-weight: bold; margin-bottom: 3px; color: #00a884; }
         .msg.me .sender { color: #53bdeb; }
 
-        .replied-preview-box { background: rgba(0, 0, 0, 0.2); border-left: 3px solid #00a884; padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 0.85rem; }
+        .replied-preview-box { background: rgba(0, 0, 0, 0.2); border-left: 3px solid #00a884; padding: 4px 8px; margin-bottom: 6px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; }
         .msg.me .replied-preview-box { border-left-color: #53bdeb; }
         .replied-author { font-weight: bold; font-size: 0.75rem; color: #00a884; }
         .msg.me .replied-author { color: #53bdeb; }
@@ -245,15 +252,17 @@
         let replyingTo = null;
         let editingMsgKey = null;
         let heartbeatInterval = null;
+        let isInitialLoad = true;
 
         let otherData = { lastActive: 0, lastSeen: null };
         let otherTyping = false;
 
-        function scrollToBottom() {
-            messagesArea.scrollTop = messagesArea.scrollHeight;
+        function scrollToBottom(smooth = false) {
+            messagesArea.scrollTo({
+                top: messagesArea.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
         }
-
-        window.addEventListener('resize', scrollToBottom);
 
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
@@ -288,7 +297,6 @@
             }
         });
 
-        // 100% Stable Heartbeat System (No Glitches)
         function startHeartbeat() {
             const userStatusRef = ref(db, `chats/presence/${currentUser}`);
             
@@ -300,7 +308,7 @@
             };
 
             ping();
-            heartbeatInterval = setInterval(ping, 4000); // Har 4 second mein active ping jayega
+            heartbeatInterval = setInterval(ping, 4000);
 
             onDisconnect(userStatusRef).set({ 
                 lastActive: 0, 
@@ -323,15 +331,12 @@
                 updateHeaderDisplay();
             });
 
-            // Har second check karega ki samne wala active hai ya nahi
             setInterval(updateHeaderDisplay, 1000);
         }
 
         function updateHeaderDisplay() {
             const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
             const now = Date.now();
-            
-            // Agar pichle 8 second ke andar ping aaya hai, toh matlab user online hai!
             const isOnlineNow = (now - (otherData.lastActive || 0)) < 8000;
 
             if (otherTyping) {
@@ -373,6 +378,7 @@
                         msgWrapper.classList.add('msg-wrapper', isMe ? 'me' : 'other');
 
                         const msgDiv = document.createElement('div');
+                        msgDiv.id = 'msg-' + key;
                         msgDiv.classList.add('msg', isMe ? 'me' : 'other');
                         
                         let startX = 0;
@@ -406,6 +412,7 @@
                         if (msg.replyTo) {
                             const replyBox = document.createElement('div');
                             replyBox.classList.add('replied-preview-box');
+                            replyBox.title = "Click to jump to original message";
                             
                             const replyAuthor = document.createElement('span');
                             replyAuthor.classList.add('replied-author');
@@ -417,6 +424,19 @@
                             
                             replyBox.appendChild(replyAuthor);
                             replyBox.appendChild(replyText);
+
+                            replyBox.onclick = (e) => {
+                                e.stopPropagation();
+                                const targetMsg = document.getElementById('msg-' + msg.replyTo.key);
+                                if (targetMsg) {
+                                    targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    targetMsg.style.backgroundColor = isMe ? '#007a63' : '#324652';
+                                    setTimeout(() => {
+                                        targetMsg.style.backgroundColor = isMe ? '#005c4b' : '#202c33';
+                                    }, 1000);
+                                }
+                            };
+
                             msgDiv.appendChild(replyBox);
                         }
 
@@ -484,7 +504,13 @@
                         msgWrapper.appendChild(msgDiv);
                         messagesArea.appendChild(msgWrapper);
                     });
-                    scrollToBottom();
+                    
+                    if (isInitialLoad) {
+                        scrollToBottom(false);
+                        isInitialLoad = false;
+                    } else {
+                        scrollToBottom(true);
+                    }
                 }
             });
         }
@@ -530,7 +556,7 @@
             replyBtn.innerHTML = "↩ Reply";
             replyBtn.onclick = (e) => {
                 e.stopPropagation();
-                setReplyingTo(key, msgData);
+                setReplyingTo(msgKey, msgData);
                 menu.remove();
             };
             menu.appendChild(replyBtn);
@@ -542,6 +568,7 @@
         function setReplyingTo(msgKey, msg) {
             cancelTopBars();
             replyingTo = {
+                key: msgKey,
                 sender: msg.sender,
                 text: msg.text
             };
