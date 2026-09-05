@@ -253,6 +253,7 @@
         let editingMsgKey = null;
         let heartbeatInterval = null;
         let isInitialLoad = true;
+        let renderedMessageKeys = new Set();
 
         let otherData = { lastActive: 0, lastSeen: null };
         let otherTyping = false;
@@ -360,7 +361,6 @@
         function loadChats() {
             const messagesRef = ref(db, 'chats/main_session');
             onValue(messagesRef, (snapshot) => {
-                messagesArea.innerHTML = "";
                 const data = snapshot.val();
                 
                 if (data) {
@@ -374,142 +374,171 @@
                             update(ref(db, `chats/main_session/${key}`), { status: 'seen' });
                         }
 
-                        const msgWrapper = document.createElement('div');
-                        msgWrapper.classList.add('msg-wrapper', isMe ? 'me' : 'other');
-
-                        const msgDiv = document.createElement('div');
-                        msgDiv.id = 'msg-' + key;
-                        msgDiv.classList.add('msg', isMe ? 'me' : 'other');
+                        let msgWrapper = document.getElementById('wrapper-' + key);
                         
-                        let startX = 0;
-                        let currentX = 0;
-                        let isDragging = false;
+                        if (!msgWrapper) {
+                            msgWrapper = document.createElement('div');
+                            msgWrapper.id = 'wrapper-' + key;
+                            msgWrapper.classList.add('msg-wrapper', isMe ? 'me' : 'other');
 
-                        msgDiv.addEventListener('touchstart', (e) => {
-                            startX = e.touches[0].clientX;
-                            isDragging = true;
-                        }, {passive: true});
-
-                        msgDiv.addEventListener('touchmove', (e) => {
-                            if (!isDragging) return;
-                            currentX = e.touches[0].clientX;
-                            let diff = currentX - startX;
-                            if (diff > 0 && diff < 80) {
-                                msgWrapper.style.transform = `translateX(${diff}px)`;
-                            }
-                        }, {passive: true});
-
-                        msgDiv.addEventListener('touchend', (e) => {
-                            if (!isDragging) return;
-                            isDragging = false;
-                            let diff = currentX - startX;
-                            msgWrapper.style.transform = 'translateX(0px)';
-                            if (diff > 45) {
-                                setReplyingTo(key, msg);
-                            }
-                        });
-
-                        if (msg.replyTo) {
-                            const replyBox = document.createElement('div');
-                            replyBox.classList.add('replied-preview-box');
-                            replyBox.title = "Click to jump to original message";
+                            const msgDiv = document.createElement('div');
+                            msgDiv.id = 'msg-' + key;
+                            msgDiv.classList.add('msg', isMe ? 'me' : 'other');
                             
-                            const replyAuthor = document.createElement('span');
-                            replyAuthor.classList.add('replied-author');
-                            replyAuthor.textContent = msg.replyTo.sender.charAt(0).toUpperCase() + msg.replyTo.sender.slice(1);
-                            
-                            const replyText = document.createElement('div');
-                            replyText.classList.add('replied-text');
-                            replyText.textContent = msg.replyTo.text;
-                            
-                            replyBox.appendChild(replyAuthor);
-                            replyBox.appendChild(replyText);
+                            let startX = 0;
+                            let currentX = 0;
+                            let isDragging = false;
 
-                            replyBox.onclick = (e) => {
-                                e.stopPropagation();
-                                const targetMsg = document.getElementById('msg-' + msg.replyTo.key);
-                                if (targetMsg) {
-                                    targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    targetMsg.style.backgroundColor = isMe ? '#007a63' : '#324652';
-                                    setTimeout(() => {
-                                        targetMsg.style.backgroundColor = isMe ? '#005c4b' : '#202c33';
-                                    }, 1000);
+                            msgDiv.addEventListener('touchstart', (e) => {
+                                startX = e.touches[0].clientX;
+                                isDragging = true;
+                            }, {passive: true});
+
+                            msgDiv.addEventListener('touchmove', (e) => {
+                                if (!isDragging) return;
+                                currentX = e.touches[0].clientX;
+                                let diff = currentX - startX;
+                                if (diff > 0 && diff < 80) {
+                                    msgWrapper.style.transform = `translateX(${diff}px)`;
                                 }
-                            };
+                            }, {passive: true});
 
-                            msgDiv.appendChild(replyBox);
-                        }
+                            msgDiv.addEventListener('touchend', (e) => {
+                                if (!isDragging) return;
+                                isDragging = false;
+                                let diff = currentX - startX;
+                                msgWrapper.style.transform = 'translateX(0px)';
+                                if (diff > 45) {
+                                    setReplyingTo(key, msg);
+                                }
+                            });
 
-                        const senderSpan = document.createElement('span');
-                        senderSpan.classList.add('sender');
-                        senderSpan.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
-                        
-                        const textP = document.createElement('p');
-                        textP.style.margin = '0';
-                        textP.style.fontSize = '0.95rem';
-                        textP.textContent = msg.text;
-                        
-                        msgDiv.appendChild(senderSpan);
-                        msgDiv.appendChild(textP);
+                            if (msg.replyTo) {
+                                const replyBox = document.createElement('div');
+                                replyBox.classList.add('replied-preview-box');
+                                replyBox.title = "Click to jump to original message";
+                                
+                                const replyAuthor = document.createElement('span');
+                                replyAuthor.classList.add('replied-author');
+                                replyAuthor.textContent = msg.replyTo.sender.charAt(0).toUpperCase() + msg.replyTo.sender.slice(1);
+                                
+                                const replyText = document.createElement('div');
+                                replyText.classList.add('replied-text');
+                                replyText.textContent = msg.replyTo.text;
+                                
+                                replyBox.appendChild(replyAuthor);
+                                replyBox.appendChild(replyText);
 
-                        const footerDiv = document.createElement('div');
-                        footerDiv.classList.add('msg-footer');
-                        
-                        if (msg.edited) {
-                            const editedSpan = document.createElement('span');
-                            editedSpan.classList.add('edited-tag');
-                            editedSpan.textContent = 'edited';
-                            footerDiv.appendChild(editedSpan);
-                        }
+                                replyBox.onclick = (e) => {
+                                    e.stopPropagation();
+                                    const targetMsg = document.getElementById('msg-' + msg.replyTo.key);
+                                    if (targetMsg) {
+                                        targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        targetMsg.style.backgroundColor = isMe ? '#007a63' : '#324652';
+                                        setTimeout(() => {
+                                            targetMsg.style.backgroundColor = isMe ? '#005c4b' : '#202c33';
+                                        }, 1000);
+                                    }
+                                };
 
-                        let timeStr = "";
-                        if(msg.timestamp) {
-                            const date = new Date(msg.timestamp);
-                            timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                        }
-                        
-                        const timeSpan = document.createElement('span');
-                        timeSpan.textContent = timeStr;
-                        footerDiv.appendChild(timeSpan);
+                                msgDiv.appendChild(replyBox);
+                            }
 
-                        if (isMe) {
-                            const ticksSpan = document.createElement('span');
-                            ticksSpan.classList.add('ticks');
-                            ticksSpan.textContent = '✓✓';
-                            if (msg.status === 'seen') {
+                            const senderSpan = document.createElement('span');
+                            senderSpan.classList.add('sender');
+                            senderSpan.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
+                            
+                            const textP = document.createElement('p');
+                            textP.style.margin = '0';
+                            textP.style.fontSize = '0.95rem';
+                            textP.style.whiteSpace = 'pre-wrap';
+                            textP.textContent = msg.text;
+                            
+                            msgDiv.appendChild(senderSpan);
+                            msgDiv.appendChild(textP);
+
+                            const footerDiv = document.createElement('div');
+                            footerDiv.classList.add('msg-footer');
+                            footerDiv.id = 'footer-' + key;
+                            
+                            if (msg.edited) {
+                                const editedSpan = document.createElement('span');
+                                editedSpan.classList.add('edited-tag');
+                                editedSpan.textContent = 'edited';
+                                footerDiv.appendChild(editedSpan);
+                            }
+
+                            let timeStr = "";
+                            if(msg.timestamp) {
+                                const date = new Date(msg.timestamp);
+                                timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            }
+                            
+                            const timeSpan = document.createElement('span');
+                            timeSpan.id = 'time-' + key;
+                            timeSpan.textContent = timeStr;
+                            footerDiv.appendChild(timeSpan);
+
+                            if (isMe) {
+                                const ticksSpan = document.createElement('span');
+                                ticksSpan.id = 'ticks-' + key;
+                                ticksSpan.classList.add('ticks');
+                                ticksSpan.textContent = '✓✓';
+                                if (msg.status === 'seen') {
+                                    ticksSpan.classList.add('seen');
+                                }
+                                footerDiv.appendChild(ticksSpan);
+                            }
+                            
+                            msgDiv.appendChild(footerDiv);
+                            msgWrapper.appendChild(msgDiv);
+                            messagesArea.appendChild(msgWrapper);
+
+                            msgDiv.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                toggleActionMenu(key, msg, msgDiv, isMe);
+                            });
+
+                            if (isInitialLoad) {
+                                scrollToBottom(false);
+                            } else {
+                                scrollToBottom(true);
+                            }
+                        } else {
+                            // Update existing message text / reaction / status dynamically without re-creating DOM
+                            const textP = msgWrapper.querySelector('p');
+                            if (textP && textP.textContent !== msg.text) {
+                                textP.textContent = msg.text;
+                            }
+
+                            const ticksSpan = document.getElementById('ticks-' + key);
+                            if (ticksSpan && msg.status === 'seen') {
                                 ticksSpan.classList.add('seen');
                             }
-                            footerDiv.appendChild(ticksSpan);
+
+                            // Reaction Update
+                            let rxnDiv = msgWrapper.querySelector('.reaction-container');
+                            if (msg.reaction) {
+                                if (!rxnDiv) {
+                                    rxnDiv = document.createElement('div');
+                                    rxnDiv.classList.add('reaction-container');
+                                    rxnDiv.title = "Click to remove reaction";
+                                    rxnDiv.onclick = async (e) => {
+                                        e.stopPropagation();
+                                        await update(ref(db, `chats/main_session/${key}`), { reaction: null });
+                                    };
+                                    msgWrapper.querySelector('.msg').appendChild(rxnDiv);
+                                }
+                                rxnDiv.textContent = msg.reaction;
+                            } else if (rxnDiv) {
+                                rxnDiv.remove();
+                            }
                         }
-                        
-                        msgDiv.appendChild(footerDiv);
-
-                        if (msg.reaction) {
-                            const rxnDiv = document.createElement('div');
-                            rxnDiv.classList.add('reaction-container');
-                            rxnDiv.textContent = msg.reaction;
-                            rxnDiv.title = "Click to remove reaction";
-                            rxnDiv.onclick = async (e) => {
-                                e.stopPropagation();
-                                await update(ref(db, `chats/main_session/${key}`), { reaction: null });
-                            };
-                            msgDiv.appendChild(rxnDiv);
-                        }
-
-                        msgDiv.addEventListener('click', (e) => {
-                            e.stopPropagation();
-                            toggleActionMenu(key, msg, msgDiv, isMe);
-                        });
-
-                        msgWrapper.appendChild(msgDiv);
-                        messagesArea.appendChild(msgWrapper);
                     });
-                    
+
                     if (isInitialLoad) {
                         scrollToBottom(false);
                         isInitialLoad = false;
-                    } else {
-                        scrollToBottom(true);
                     }
                 }
             });
@@ -659,10 +688,11 @@
 
         sendBtn.addEventListener('click', handleSendMessage);
 
+        // Fixed: Enter key will now add new line (spacing) instead of sending message. Message is sent via Send Button.
         messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
+            if (e.key === 'Enter' && e.shiftKey) {
+                // Allow shift + enter for new line
+                return;
             }
         });
 
