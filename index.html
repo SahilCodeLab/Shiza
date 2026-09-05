@@ -253,16 +253,19 @@
         let editingMsgKey = null;
         let heartbeatInterval = null;
         let isInitialLoad = true;
-        let renderedMessageKeys = new Set();
+        let isSendingMessage = false;
 
         let otherData = { lastActive: 0, lastSeen: null };
         let otherTyping = false;
 
-        function scrollToBottom(smooth = false) {
-            messagesArea.scrollTo({
-                top: messagesArea.scrollHeight,
-                behavior: smooth ? 'smooth' : 'auto'
-            });
+        function scrollToBottom(force = false) {
+            const isNearBottom = messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight < 150;
+            if (force || isNearBottom || isSendingMessage) {
+                messagesArea.scrollTo({
+                    top: messagesArea.scrollHeight,
+                    behavior: 'auto'
+                });
+            }
         }
 
         loginForm.addEventListener('submit', (e) => {
@@ -500,12 +503,11 @@
                             });
 
                             if (isInitialLoad) {
-                                scrollToBottom(false);
-                            } else {
                                 scrollToBottom(true);
+                            } else {
+                                scrollToBottom(false);
                             }
                         } else {
-                            // Update existing message text / reaction / status dynamically without re-creating DOM
                             const textP = msgWrapper.querySelector('p');
                             if (textP && textP.textContent !== msg.text) {
                                 textP.textContent = msg.text;
@@ -516,7 +518,6 @@
                                 ticksSpan.classList.add('seen');
                             }
 
-                            // Reaction Update
                             let rxnDiv = msgWrapper.querySelector('.reaction-container');
                             if (msg.reaction) {
                                 if (!rxnDiv) {
@@ -537,7 +538,7 @@
                     });
 
                     if (isInitialLoad) {
-                        scrollToBottom(false);
+                        scrollToBottom(true);
                         isInitialLoad = false;
                     }
                 }
@@ -604,7 +605,6 @@
             replyBarTitle.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
             replyBarText.textContent = msg.text;
             replyBar.classList.remove('hidden');
-            messageInput.focus();
         }
 
         function setEditingMsg(msgKey, text) {
@@ -615,7 +615,6 @@
             editBar.classList.remove('hidden');
             messageInput.style.height = 'auto';
             messageInput.style.height = (messageInput.scrollHeight - 6) + 'px';
-            messageInput.focus();
         }
 
         function cancelTopBars() {
@@ -656,6 +655,7 @@
             const text = messageInput.value.trim();
             if (!text) return;
 
+            isSendingMessage = true;
             setTypingStatus(false); 
 
             if (editingMsgKey) {
@@ -683,16 +683,20 @@
             messageInput.value = "";
             messageInput.style.height = 'auto';
             cancelTopBars();
-            messageInput.focus();
+            scrollToBottom(true);
+
+            // Removed messageInput.focus() to prevent keyboard flickering/closing issue entirely
+            setTimeout(() => {
+                isSendingMessage = false;
+            }, 50);
         }
 
         sendBtn.addEventListener('click', handleSendMessage);
 
-        // Fixed: Enter key will now add new line (spacing) instead of sending message. Message is sent via Send Button.
         messageInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' && e.shiftKey) {
-                // Allow shift + enter for new line
-                return;
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
             }
         });
 
