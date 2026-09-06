@@ -209,7 +209,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, set, update, onValue, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, push, set, update, query, limitToLast, orderByKey, endBefore, get, onChildAdded, serverTimestamp, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAii2t4g5DuJ7-BLm8v9-syyrtOmyWK8_8",
@@ -252,6 +252,8 @@
         let replyingTo = null;
         let editingMsgKey = null;
         let heartbeatInterval = null;
+        let oldestMessageKey = null;
+        let isLoadingMore = false;
         let isInitialLoad = true;
 
         let otherData = { lastActive: 0, lastSeen: null };
@@ -271,10 +273,7 @@
             let rawUser = document.getElementById('username').value.trim().toLowerCase();
             const passVal = document.getElementById('password').value.trim();
 
-            if(rawUser.includes('@')) {
-                rawUser = rawUser.split('@')[0];
-            }
-            
+            if(rawUser.includes('@')) rawUser = rawUser.split('@')[0];
             const userVal = rawUser.replace(/\s+/g, '');
 
             if ((userVal === 'sahil' && passVal === 'sahil1234') || (userVal === 'shazu' && passVal === 'shazu1234')) {
@@ -282,7 +281,6 @@
                 otherUser = (currentUser === 'sahil') ? 'shazu' : 'sahil';
                 
                 const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
-                
                 userTag.innerText = capitalizedOther;
                 userAvatar.childNodes[0].nodeValue = capitalizedOther.charAt(0);
                 
@@ -290,7 +288,7 @@
                 chatScreen.classList.remove('hidden');
                 
                 startHeartbeat();
-                loadChats();
+                loadInitialChats();
                 initStatusListeners();
             } else {
                 errorLog.innerText = "FAIL: Invalid username or password!";
@@ -299,45 +297,29 @@
 
         function startHeartbeat() {
             const userStatusRef = ref(db, `chats/presence/${currentUser}`);
-            
             const ping = () => {
-                set(userStatusRef, { 
-                    lastActive: serverTimestamp(),
-                    lastSeen: serverTimestamp() 
-                });
+                set(userStatusRef, { lastActive: serverTimestamp(), lastSeen: serverTimestamp() });
             };
-
             ping();
             heartbeatInterval = setInterval(ping, 4000);
-
-            onDisconnect(userStatusRef).set({ 
-                lastActive: 0, 
-                lastSeen: serverTimestamp() 
-            });
+            onDisconnect(userStatusRef).set({ lastActive: 0, lastSeen: serverTimestamp() });
         }
 
         function initStatusListeners() {
-            const otherStatusRef = ref(db, `chats/presence/${otherUser}`);
-            onValue(otherStatusRef, (snapshot) => {
-                const data = snapshot.val();
-                otherData = data || { lastActive: 0, lastSeen: null };
+            onValue(ref(db, `chats/presence/${otherUser}`), (snap) => {
+                otherData = snap.val() || { lastActive: 0, lastSeen: null };
                 updateHeaderDisplay();
             });
-
-            const typingRef = ref(db, `chats/typing_status/${otherUser}`);
-            onValue(typingRef, (snapshot) => {
-                const data = snapshot.val();
-                otherTyping = data ? data.isTyping : false;
+            onValue(ref(db, `chats/typing_status/${otherUser}`), (snap) => {
+                otherTyping = snap.val() ? snap.val().isTyping : false;
                 updateHeaderDisplay();
             });
-
             setInterval(updateHeaderDisplay, 1000);
         }
 
         function updateHeaderDisplay() {
             const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
-            const now = Date.now();
-            const isOnlineNow = (now - (otherData.lastActive || 0)) < 8000;
+            const isOnlineNow = (Date.now() - (otherData.lastActive || 0)) < 8000;
 
             if (otherTyping) {
                 onlineDot.classList.add('active');
@@ -348,8 +330,7 @@
             } else {
                 onlineDot.classList.remove('active');
                 if (currentUser === 'sahil' && otherData.lastSeen) {
-                    const lastSeenDate = new Date(otherData.lastSeen);
-                    const timeStr = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const timeStr = new Date(otherData.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     typingStatusText.innerText = `Last seen today at ${timeStr}`;
                 } else {
                     typingStatusText.innerText = "";
@@ -357,180 +338,18 @@
             }
         }
 
-        function loadChats() {
-            const messagesRef = ref(db, 'chats/main_session');
-            onValue(messagesRef, (snapshot) => {
+        // INITIAL LOAD: Load last 20 messages instantly without lagging server
+        function loadInitialChats() {
+            const messagesRef = query(ref(db, 'chats/main_session'), limitToLast(20));
+            
+            get(messagesRef).then((snapshot) => {
                 const data = snapshot.val();
-                
                 if (data) {
-                    Object.keys(data).forEach(key => {
-                        const msg = data[key];
-                        if(key === 'secret_key') return;
+                    const keys = Object.keys(data).sort();
+                    oldestMessageKey = keys[0];
 
-                        const isMe = msg.sender === currentUser;
-                        
-                        if (!isMe && msg.status !== 'seen') {
-                            update(ref(db, `chats/main_session/${key}`), { status: 'seen' });
-                        }
-
-                        let msgWrapper = document.getElementById('wrapper-' + key);
-                        
-                        if (!msgWrapper) {
-                            msgWrapper = document.createElement('div');
-                            msgWrapper.id = 'wrapper-' + key;
-                            msgWrapper.classList.add('msg-wrapper', isMe ? 'me' : 'other');
-
-                            const msgDiv = document.createElement('div');
-                            msgDiv.id = 'msg-' + key;
-                            msgDiv.classList.add('msg', isMe ? 'me' : 'other');
-                            
-                            let startX = 0;
-                            let currentX = 0;
-                            let isDragging = false;
-
-                            msgDiv.addEventListener('touchstart', (e) => {
-                                startX = e.touches[0].clientX;
-                                isDragging = true;
-                            }, {passive: true});
-
-                            msgDiv.addEventListener('touchmove', (e) => {
-                                if (!isDragging) return;
-                                currentX = e.touches[0].clientX;
-                                let diff = currentX - startX;
-                                if (diff > 0 && diff < 80) {
-                                    msgWrapper.style.transform = `translateX(${diff}px)`;
-                                }
-                            }, {passive: true});
-
-                            msgDiv.addEventListener('touchend', (e) => {
-                                if (!isDragging) return;
-                                isDragging = false;
-                                let diff = currentX - startX;
-                                msgWrapper.style.transform = 'translateX(0px)';
-                                if (diff > 45) {
-                                    setReplyingTo(key, msg);
-                                }
-                            });
-
-                            if (msg.replyTo) {
-                                const replyBox = document.createElement('div');
-                                replyBox.classList.add('replied-preview-box');
-                                replyBox.title = "Click to jump to original message";
-                                
-                                const replyAuthor = document.createElement('span');
-                                replyAuthor.classList.add('replied-author');
-                                replyAuthor.textContent = msg.replyTo.sender.charAt(0).toUpperCase() + msg.replyTo.sender.slice(1);
-                                
-                                const replyText = document.createElement('div');
-                                replyText.classList.add('replied-text');
-                                replyText.textContent = msg.replyTo.text;
-                                
-                                replyBox.appendChild(replyAuthor);
-                                replyBox.appendChild(replyText);
-
-                                replyBox.onclick = (e) => {
-                                    e.stopPropagation();
-                                    const targetMsg = document.getElementById('msg-' + msg.replyTo.key);
-                                    if (targetMsg) {
-                                        targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        targetMsg.style.backgroundColor = isMe ? '#007a63' : '#324652';
-                                        setTimeout(() => {
-                                            targetMsg.style.backgroundColor = isMe ? '#005c4b' : '#202c33';
-                                        }, 1000);
-                                    }
-                                };
-
-                                msgDiv.appendChild(replyBox);
-                            }
-
-                            const senderSpan = document.createElement('span');
-                            senderSpan.classList.add('sender');
-                            senderSpan.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
-                            
-                            const textP = document.createElement('p');
-                            textP.style.margin = '0';
-                            textP.style.fontSize = '0.95rem';
-                            textP.style.whiteSpace = 'pre-wrap';
-                            textP.textContent = msg.text;
-                            
-                            msgDiv.appendChild(senderSpan);
-                            msgDiv.appendChild(textP);
-
-                            const footerDiv = document.createElement('div');
-                            footerDiv.classList.add('msg-footer');
-                            footerDiv.id = 'footer-' + key;
-                            
-                            if (msg.edited) {
-                                const editedSpan = document.createElement('span');
-                                editedSpan.classList.add('edited-tag');
-                                editedSpan.textContent = 'edited';
-                                footerDiv.appendChild(editedSpan);
-                            }
-
-                            let timeStr = "";
-                            if(msg.timestamp) {
-                                const date = new Date(msg.timestamp);
-                                timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                            }
-                            
-                            const timeSpan = document.createElement('span');
-                            timeSpan.id = 'time-' + key;
-                            timeSpan.textContent = timeStr;
-                            footerDiv.appendChild(timeSpan);
-
-                            if (isMe) {
-                                const ticksSpan = document.createElement('span');
-                                ticksSpan.id = 'ticks-' + key;
-                                ticksSpan.classList.add('ticks');
-                                ticksSpan.textContent = '✓✓';
-                                if (msg.status === 'seen') {
-                                    ticksSpan.classList.add('seen');
-                                }
-                                footerDiv.appendChild(ticksSpan);
-                            }
-                            
-                            msgDiv.appendChild(footerDiv);
-                            msgWrapper.appendChild(msgDiv);
-                            messagesArea.appendChild(msgWrapper);
-
-                            msgDiv.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                toggleActionMenu(key, msg, msgDiv, isMe);
-                            });
-
-                            if (isInitialLoad) {
-                                scrollToBottom(false);
-                            } else {
-                                scrollToBottom(true);
-                            }
-                        } else {
-                            const textP = msgWrapper.querySelector('p');
-                            if (textP && textP.textContent !== msg.text) {
-                                textP.textContent = msg.text;
-                            }
-
-                            const ticksSpan = document.getElementById('ticks-' + key);
-                            if (ticksSpan && msg.status === 'seen') {
-                                ticksSpan.classList.add('seen');
-                            }
-
-                            let rxnDiv = msgWrapper.querySelector('.reaction-container');
-                            if (msg.reaction) {
-                                if (!rxnDiv) {
-                                    rxnDiv = document.createElement('div');
-                                    rxnDiv.classList.add('reaction-container');
-                                    rxnDiv.title = "Click to remove reaction";
-                                    rxnDiv.onclick = async (e) => {
-                                        e.stopPropagation();
-                                        await update(ref(db, `chats/main_session/${key}`), { reaction: null });
-                                    };
-                                    msgWrapper.querySelector('.msg').appendChild(rxnDiv);
-                                }
-                                rxnDiv.textContent = msg.reaction;
-                            } else if (rxnDiv) {
-                                rxnDiv.remove();
-                            }
-                        }
+                    keys.forEach(key => {
+                        if(key !== 'secret_key') renderMessageNode(key, data[key], false);
                     });
 
                     if (isInitialLoad) {
@@ -538,18 +357,176 @@
                         isInitialLoad = false;
                     }
                 }
+                listenForNewMessages();
+            });
+
+            // Scroll up pagination
+            messagesArea.addEventListener('scroll', () => {
+                if (messagesArea.scrollTop <= 20 && !isLoadingMore) {
+                    loadOlderChats();
+                }
+            });
+        }
+
+        // REAL-TIME LISTENER: Listen for live new messages at bottom
+        function listenForNewMessages() {
+            const messagesRef = query(ref(db, 'chats/main_session'), limitToLast(1));
+            onChildAdded(messagesRef, (snapshot) => {
+                if (isInitialLoad) return;
+                const key = snapshot.key;
+                const msg = snapshot.val();
+                if (key === 'secret_key') return;
+
+                let existing = document.getElementById('wrapper-' + key);
+                if (!existing) {
+                    renderMessageNode(key, msg, false);
+                    scrollToBottom(true);
+                }
+            });
+        }
+
+        // PAGINATION: Load older 15 messages when scrolling up
+        async function loadOlderChats() {
+            if (!oldestMessageKey || isLoadingMore) return;
+            isLoadingMore = true;
+
+            const oldQuery = query(ref(db, 'chats/main_session'), orderByKey(), endBefore(oldestMessageKey), limitToLast(15));
+            const snapshot = await get(oldQuery);
+            const data = snapshot.val();
+
+            if (data) {
+                const keys = Object.keys(data).sort();
+                oldestMessageKey = keys[0];
+                const previousHeight = messagesArea.scrollHeight;
+
+                keys.reverse().forEach(key => {
+                    if (key !== 'secret_key' && !document.getElementById('wrapper-' + key)) {
+                        renderMessageNode(key, data[key], true);
+                    }
+                });
+
+                messagesArea.scrollTop = messagesArea.scrollHeight - previousHeight;
+            }
+            isLoadingMore = false;
+        }
+
+        function renderMessageNode(key, msg, prepend = false) {
+            if (document.getElementById('wrapper-' + key)) return;
+            const isMe = msg.sender === currentUser;
+            
+            if (!isMe && msg.status !== 'seen') {
+                update(ref(db, `chats/main_session/${key}`), { status: 'seen' });
+            }
+
+            const msgWrapper = document.createElement('div');
+            msgWrapper.id = 'wrapper-' + key;
+            msgWrapper.classList.add('msg-wrapper', isMe ? 'me' : 'other');
+
+            const msgDiv = document.createElement('div');
+            msgDiv.id = 'msg-' + key;
+            msgDiv.classList.add('msg', isMe ? 'me' : 'other');
+            
+            let startX = 0, currentX = 0, isDragging = false;
+            msgDiv.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; isDragging = true; }, {passive: true});
+            msgDiv.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                currentX = e.touches[0].clientX;
+                let diff = currentX - startX;
+                if (diff > 0 && diff < 80) msgWrapper.style.transform = `translateX(${diff}px)`;
+            }, {passive: true});
+            msgDiv.addEventListener('touchend', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                let diff = currentX - startX;
+                msgWrapper.style.transform = 'translateX(0px)';
+                if (diff > 45) setReplyingTo(key, msg);
+            });
+
+            if (msg.replyTo) {
+                const replyBox = document.createElement('div');
+                replyBox.classList.add('replied-preview-box');
+                const replyAuthor = document.createElement('span');
+                replyAuthor.classList.add('replied-author');
+                replyAuthor.textContent = msg.replyTo.sender.charAt(0).toUpperCase() + msg.replyTo.sender.slice(1);
+                const replyText = document.createElement('div');
+                replyText.classList.add('replied-text');
+                replyText.textContent = msg.replyTo.text;
+                replyBox.appendChild(replyAuthor);
+                replyBox.appendChild(replyText);
+                
+                replyBox.onclick = (e) => {
+                    e.stopPropagation();
+                    const targetMsg = document.getElementById('msg-' + msg.replyTo.key);
+                    if (targetMsg) {
+                        targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        targetMsg.style.backgroundColor = isMe ? '#007a63' : '#324652';
+                        setTimeout(() => {
+                            targetMsg.style.backgroundColor = isMe ? '#005c4b' : '#202c33';
+                        }, 1000);
+                    }
+                };
+                msgDiv.appendChild(replyBox);
+            }
+
+            const senderSpan = document.createElement('span');
+            senderSpan.classList.add('sender');
+            senderSpan.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
+            
+            const textP = document.createElement('p');
+            textP.style.margin = '0';
+            textP.style.fontSize = '0.95rem';
+            textP.style.whiteSpace = 'pre-wrap';
+            textP.textContent = msg.text;
+            
+            msgDiv.appendChild(senderSpan);
+            msgDiv.appendChild(textP);
+
+            const footerDiv = document.createElement('div');
+            footerDiv.classList.add('msg-footer');
+            if (msg.edited) {
+                const editedSpan = document.createElement('span');
+                editedSpan.classList.add('edited-tag');
+                editedSpan.textContent = 'edited';
+                footerDiv.appendChild(editedSpan);
+            }
+
+            let timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+            const timeSpan = document.createElement('span');
+            timeSpan.id = 'time-' + key;
+            timeSpan.textContent = timeStr;
+            footerDiv.appendChild(timeSpan);
+
+            if (isMe) {
+                const ticksSpan = document.createElement('span');
+                ticksSpan.id = 'ticks-' + key;
+                ticksSpan.classList.add('ticks');
+                ticksSpan.textContent = '✓✓';
+                if (msg.status === 'seen') ticksSpan.classList.add('seen');
+                footerDiv.appendChild(ticksSpan);
+            }
+            
+            msgDiv.appendChild(footerDiv);
+            msgWrapper.appendChild(msgDiv);
+
+            if (prepend) {
+                messagesArea.insertBefore(msgWrapper, messagesArea.firstChild);
+            } else {
+                messagesArea.appendChild(msgWrapper);
+            }
+
+            msgDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleActionMenu(key, msg, msgDiv, isMe);
             });
         }
 
         function toggleActionMenu(msgKey, msgData, msgDiv, isMe) {
             document.querySelectorAll('.action-menu').forEach(m => m.remove());
-
             const menu = document.createElement('div');
             menu.classList.add('action-menu');
             
             const emojiGrid = document.createElement('div');
             emojiGrid.classList.add('emoji-grid');
-            
             const emojisList = ['❤️', '👍', '😂', '🔥', '😢', '😍', '👏', '🙏', '🎉', '😡', '🤔', '😎', '✨', '💯', '🥳', '👀'];
             
             emojisList.forEach(emoji => {
@@ -569,22 +546,14 @@
                 const editBtn = document.createElement('button');
                 editBtn.classList.add('menu-btn');
                 editBtn.innerHTML = "✏️ Edit";
-                editBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    setEditingMsg(msgKey, msgData.text);
-                    menu.remove();
-                };
+                editBtn.onclick = (e) => { e.stopPropagation(); setEditingMsg(msgKey, msgData.text); menu.remove(); };
                 menu.appendChild(editBtn);
             }
 
             const replyBtn = document.createElement('button');
             replyBtn.classList.add('menu-btn');
             replyBtn.innerHTML = "↩ Reply";
-            replyBtn.onclick = (e) => {
-                e.stopPropagation();
-                setReplyingTo(msgKey, msgData);
-                menu.remove();
-            };
+            replyBtn.onclick = (e) => { e.stopPropagation(); setReplyingTo(msgKey, msgData); menu.remove(); };
             menu.appendChild(replyBtn);
 
             msgDiv.appendChild(menu);
@@ -593,11 +562,7 @@
 
         function setReplyingTo(msgKey, msg) {
             cancelTopBars();
-            replyingTo = {
-                key: msgKey,
-                sender: msg.sender,
-                text: msg.text
-            };
+            replyingTo = { key: msgKey, sender: msg.sender, text: msg.text };
             replyBarTitle.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
             replyBarText.textContent = msg.text;
             replyBar.classList.remove('hidden');
@@ -621,62 +586,37 @@
         }
 
         closeReplyBtn.addEventListener('click', cancelTopBars);
-        closeEditBtn.addEventListener('click', () => {
-            cancelTopBars();
-            messageInput.value = "";
-            messageInput.style.height = 'auto';
-        });
+        closeEditBtn.addEventListener('click', () => { cancelTopBars(); messageInput.value = ""; messageInput.style.height = 'auto'; });
 
         messageInput.addEventListener('input', () => {
             messageInput.style.height = 'auto';
             messageInput.style.height = (messageInput.scrollHeight - 6) + 'px';
-
             setTypingStatus(true);
             clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                setTypingStatus(false);
-            }, 2000); 
+            typingTimeout = setTimeout(() => { setTypingStatus(false); }, 2000); 
         });
 
         async function setTypingStatus(isTyping) {
             if (!currentUser) return;
-            const typingRef = ref(db, `chats/typing_status/${currentUser}`);
-            await set(typingRef, {
-                isTyping: isTyping,
-                secret_key: "SahilCodeLabSecret2026"
-            });
+            await set(ref(db, `chats/typing_status/${currentUser}`), { isTyping, secret_key: "SahilCodeLabSecret2026" });
         }
 
         async function handleSendMessage() {
             const text = messageInput.value.trim();
             if (!text) return;
 
+            messageInput.value = "";
+            messageInput.style.height = '22px';
             setTypingStatus(false); 
 
             if (editingMsgKey) {
-                await update(ref(db, `chats/main_session/${editingMsgKey}`), {
-                    text: text,
-                    edited: true,
-                    secret_key: "SahilCodeLabSecret2026"
-                });
+                await update(ref(db, `chats/main_session/${editingMsgKey}`), { text: text, edited: true, secret_key: "SahilCodeLabSecret2026" });
             } else {
-                let messagePayload = {
-                    sender: currentUser,
-                    text: text,
-                    status: 'sent',
-                    timestamp: serverTimestamp(),
-                    secret_key: "SahilCodeLabSecret2026"
-                };
-
-                if (replyingTo) {
-                    messagePayload.replyTo = replyingTo;
-                }
-
+                let messagePayload = { sender: currentUser, text: text, status: 'sent', timestamp: serverTimestamp(), secret_key: "SahilCodeLabSecret2026" };
+                if (replyingTo) messagePayload.replyTo = replyingTo;
                 await push(ref(db, `chats/main_session`), messagePayload);
             }
 
-            messageInput.value = "";
-            messageInput.style.height = 'auto';
             cancelTopBars();
             scrollToBottom(true);
         }
@@ -696,8 +636,7 @@
         logoutBtn.addEventListener('click', async () => {
             clearInterval(heartbeatInterval);
             await setTypingStatus(false);
-            const userStatusRef = ref(db, `chats/presence/${currentUser}`);
-            await set(userStatusRef, { lastActive: 0, lastSeen: serverTimestamp() });
+            await set(ref(db, `chats/presence/${currentUser}`), { lastActive: 0, lastSeen: serverTimestamp() });
             location.reload();
         });
     </script>
