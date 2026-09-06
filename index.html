@@ -75,8 +75,6 @@
             overscroll-behavior: contain; 
             -webkit-overflow-scrolling: touch;
         }
-
-        .load-more-indicator { text-align: center; font-size: 0.8rem; color: #8696a0; padding: 4px; }
         
         .msg-wrapper { position: relative; display: flex; flex-direction: column; width: 100%; transition: transform 0.15s ease-out; touch-action: pan-y; }
         .msg { max-width: 85%; padding: 8px 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); cursor: pointer; user-select: text; -webkit-user-select: text; transition: background-color 0.4s; }
@@ -211,7 +209,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, set, update, query, limitToLast, orderByKey, get, onChildAdded, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, push, set, update, query, limitToLast, orderByKey, endBefore, get, onChildAdded, serverTimestamp, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAii2t4g5DuJ7-BLm8v9-syyrtOmyWK8_8",
@@ -254,9 +252,9 @@
         let replyingTo = null;
         let editingMsgKey = null;
         let heartbeatInterval = null;
-        let isInitialLoad = true;
         let oldestMessageKey = null;
         let isLoadingMore = false;
+        let listenerInitialized = false;
 
         let otherData = { lastActive: 0, lastSeen: null };
         let otherTyping = false;
@@ -340,27 +338,26 @@
             }
         }
 
-        // INITIAL LOAD: Fetches only the last 15 messages for high speed
+        // INITIAL LOAD: Fast opening by loading only last 15 messages
         function loadInitialChats() {
             const messagesRef = query(ref(db, 'chats/main_session'), limitToLast(15));
             
             get(messagesRef).then((snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    const keys = Object.keys(data);
-                    oldestMessageKey = keys[0]; // Track oldest message for pagination
+                    const keys = Object.keys(data).sort();
+                    oldestMessageKey = keys[0];
 
                     keys.forEach(key => {
-                        if(key !== 'secret_key') appendMessage(key, data[key], true);
+                        if(key !== 'secret_key') appendMessage(key, data[key], false);
                     });
 
                     scrollToBottom(false);
-                    isInitialLoad = false;
                 }
+                listenerInitialized = true;
                 listenForNewMessages();
             });
 
-            // Scroll listener for lazy loading older messages when scrolling to top
             messagesArea.addEventListener('scroll', () => {
                 if (messagesArea.scrollTop === 0 && !isLoadingMore) {
                     loadOlderChats();
@@ -368,23 +365,26 @@
             });
         }
 
-        // REALTIME LISTENER: Listens only for new incoming messages at the bottom
         function listenForNewMessages() {
-            const messagesRef = query(ref(db, 'chats/main_session'), limitToLast(1));
+            const messagesRef = ref(db, 'chats/main_session');
             onChildAdded(messagesRef, (snapshot) => {
-                if (isInitialLoad) return;
+                if (!listenerInitialized) return;
                 const key = snapshot.key;
                 const msg = snapshot.val();
                 if (key === 'secret_key') return;
 
-                if (!document.getElementById('wrapper-' + key)) {
+                let msgWrapper = document.getElementById('wrapper-' + key);
+                if (!msgWrapper) {
                     appendMessage(key, msg, false);
                     scrollToBottom(true);
+                } else {
+                    // Update ticks/status/reaction if message already exists
+                    const ticksSpan = document.getElementById('ticks-' + key);
+                    if (ticksSpan && msg.status === 'seen') ticksSpan.classList.add('seen');
                 }
             });
         }
 
-        // PAGINATION: Load older messages when scrolling up
         async function loadOlderChats() {
             if (!oldestMessageKey || isLoadingMore) return;
             isLoadingMore = true;
@@ -394,7 +394,7 @@
             const data = snapshot.val();
 
             if (data) {
-                const keys = Object.keys(data);
+                const keys = Object.keys(data).sort();
                 oldestMessageKey = keys[0];
                 const previousHeight = messagesArea.scrollHeight;
 
@@ -404,7 +404,6 @@
                     }
                 });
 
-                // Maintain scroll position smoothly so user doesn't lose context
                 messagesArea.scrollTop = messagesArea.scrollHeight - previousHeight;
             }
             isLoadingMore = false;
@@ -597,6 +596,8 @@
             const text = messageInput.value.trim();
             if (!text) return;
 
+            messageInput.value = "";
+            messageInput.style.height = '22px';
             setTypingStatus(false); 
 
             if (editingMsgKey) {
@@ -607,8 +608,6 @@
                 await push(ref(db, `chats/main_session`), messagePayload);
             }
 
-            messageInput.value = "";
-            messageInput.style.height = 'auto';
             cancelTopBars();
             scrollToBottom(true);
         }
@@ -633,4 +632,4 @@
         });
     </script>
 </body>
-</html>
+    </html>
