@@ -209,10 +209,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, set, update, onValue, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-        
-        // Supabase Client SDK import
-        import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+        import { getDatabase, ref, push, set, update, onValue, query, limitToLast, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAii2t4g5DuJ7-BLm8v9-syyrtOmyWK8_8",
@@ -226,11 +223,6 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-
-        // Supabase Initialization
-        const SUPABASE_URL = "https://mogirffjqlbciwgyiqkx.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_fcn77s414JmfsLxQ95PBbw_O5tnt3Wy";
-        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const loginScreen = document.getElementById('login-screen');
         const chatScreen = document.getElementById('chat-screen');
@@ -343,6 +335,7 @@
         }
 
         function updateHeaderDisplay() {
+            const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
             const now = Date.now();
             const isOnlineNow = (now - (otherData.lastActive || 0)) < 8000;
 
@@ -365,7 +358,9 @@
         }
 
         function loadChats() {
-            const messagesRef = ref(db, 'chats/main_session');
+            // OPTIMIZATION: Load only the last 15 messages to prevent server load and lag
+            const messagesRef = query(ref(db, 'chats/main_session'), limitToLast(15));
+            
             onValue(messagesRef, (snapshot) => {
                 const data = snapshot.val();
                 
@@ -456,27 +451,9 @@
                             
                             const textP = document.createElement('p');
                             textP.style.margin = '0';
-
-                            if (msg.type === 'image') {
-                                const imgTag = document.createElement('img');
-                                imgTag.src = msg.text;
-                                imgTag.style.maxWidth = '100%';
-                                imgTag.style.borderRadius = '6px';
-                                imgTag.style.cursor = 'pointer';
-                                imgTag.onclick = () => window.open(msg.text, '_blank');
-                                textP.appendChild(imgTag);
-                            } else if (msg.type === 'video') {
-                                const videoTag = document.createElement('video');
-                                videoTag.src = msg.text;
-                                videoTag.controls = true;
-                                videoTag.style.maxWidth = '100%';
-                                videoTag.style.borderRadius = '6px';
-                                textP.appendChild(videoTag);
-                            } else {
-                                textP.style.fontSize = '0.95rem';
-                                textP.style.whiteSpace = 'pre-wrap';
-                                textP.textContent = msg.text;
-                            }
+                            textP.style.fontSize = '0.95rem';
+                            textP.style.whiteSpace = 'pre-wrap';
+                            textP.textContent = msg.text;
                             
                             msgDiv.appendChild(senderSpan);
                             msgDiv.appendChild(textP);
@@ -530,7 +507,7 @@
                             }
                         } else {
                             const textP = msgWrapper.querySelector('p');
-                            if (textP && msg.type === 'text' && textP.textContent !== msg.text) {
+                            if (textP && textP.textContent !== msg.text) {
                                 textP.textContent = msg.text;
                             }
 
@@ -590,7 +567,7 @@
             });
             menu.appendChild(emojiGrid);
 
-            if (isMe && msgData.type === 'text') {
+            if (isMe) {
                 const editBtn = document.createElement('button');
                 editBtn.classList.add('menu-btn');
                 editBtn.innerHTML = "✏️ Edit";
@@ -621,10 +598,10 @@
             replyingTo = {
                 key: msgKey,
                 sender: msg.sender,
-                text: msg.type === 'text' ? msg.text : `[${msg.type}]`
+                text: msg.text
             };
             replyBarTitle.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
-            replyBarText.textContent = replyingTo.text;
+            replyBarText.textContent = msg.text;
             replyBar.classList.remove('hidden');
         }
 
@@ -688,7 +665,6 @@
                 let messagePayload = {
                     sender: currentUser,
                     text: text,
-                    type: 'text',
                     status: 'sent',
                     timestamp: serverTimestamp(),
                     secret_key: "SahilCodeLabSecret2026"
@@ -701,6 +677,7 @@
                 await push(ref(db, `chats/main_session`), messagePayload);
             }
 
+            // CLEAN FIX: Input clear and height reset happens instantly without lag
             messageInput.value = "";
             messageInput.style.height = 'auto';
             cancelTopBars();
@@ -713,71 +690,10 @@
         });
 
         messageInput.addEventListener('keydown', (e) => {
-            e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage());
-        });
-
-        // Supabase Media Sharing Integration (Dono taraf se support karega)
-        const chatFormDiv = document.getElementById('chat-form');
-        const mediaFileInput = document.createElement('input');
-        mediaFileInput.type = 'file';
-        mediaFileInput.accept = 'image/*,video/*';
-        mediaFileInput.style.display = 'none';
-        document.body.appendChild(mediaFileInput);
-
-        const attachBtn = document.createElement('button');
-        attachBtn.type = 'button';
-        attachBtn.title = "Share Media";
-        attachBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="#8696a0"><path d="M1.816 15.556v.002c0 3.314 2.686 6 6 6h8c3.314 0 6-2.686 6-6V8.342c0-2.427-1.972-4.4-4.4-4.4s-4.4 1.973-4.4 4.4v7.214c0 1.103.897 2 2 2s2-.897 2-2V8.442h2v7.114c0 2.209-1.791 4-4 4s-4-1.791-4-4V8.342c0-3.534 2.866-6.4 6.4-6.4s6.4 2.866 6.4 6.4v7.216c0 4.418-3.582 8-8 8s-8-3.582-8-8v-7.14h2v7.14z"></path></svg>`;
-        chatFormDiv.insertBefore(attachBtn, messageInput);
-
-        attachBtn.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            mediaFileInput.click();
-        });
-
-        mediaFileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            errorLog.innerText = "Uploading media to Supabase...";
-            const fileName = `${Date.now()}_${file.name}`;
-
-            const { data, error } = await supabase.storage
-                .from('media-store')
-                .upload(fileName, file);
-
-            if (error) {
-                alert("Upload Failed: " + error.message);
-                errorLog.innerText = "";
-                return;
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
             }
-
-            const { data: publicURLData } = supabase.storage
-                .from('media-store')
-                .getPublicUrl(fileName);
-
-            const mediaUrl = publicURLData.publicUrl;
-            const isVideo = file.type.startsWith('video');
-
-            let messagePayload = {
-                sender: currentUser,
-                text: mediaUrl,
-                type: isVideo ? 'video' : 'image',
-                status: 'sent',
-                timestamp: serverTimestamp(),
-                secret_key: "SahilCodeLabSecret2026"
-            };
-
-            if (replyingTo) {
-                messagePayload.replyTo = replyingTo;
-            }
-
-            await push(ref(db, `chats/main_session`), messagePayload);
-
-            mediaFileInput.value = "";
-            errorLog.innerText = "";
-            cancelTopBars();
-            scrollToBottom(true);
         });
 
         logoutBtn.addEventListener('click', async () => {
