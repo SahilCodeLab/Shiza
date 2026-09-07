@@ -49,7 +49,7 @@
         .chat-box { display: flex; flex-direction: column; height: 100%; width: 100%; position: relative; overflow: hidden; }
         
         .chat-header { padding: 10px 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.4); z-index: 10; flex-shrink: 0; }
-        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; }
         .avatar { width: 38px; height: 38px; border-radius: 50%; background: #00a884; display: flex; justify-content: center; align-items: center; color: #111b21; font-weight: bold; font-size: 1rem; position: relative; }
         
         .online-dot { width: 10px; height: 10px; background-color: #25d366; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 2px solid #202c33; display: none; }
@@ -57,7 +57,7 @@
 
         .header-text { display: flex; flex-direction: column; }
         #user-tag { font-size: 1rem; font-weight: 500; color: #e9edef; }
-        #typing-status { font-size: 0.75rem; color: #00a884; font-weight: normal; margin-top: 2px; min-height: 14px; }
+        #typing-status { font-size: 0.75rem; color: #00a884; font-weight: normal; margin-top: 2px; min-height: 14px; transition: opacity 0.2s; }
         #logout-btn { background: transparent; border: none; color: #aebac1; font-size: 0.9rem; cursor: pointer; padding: 6px 10px; border-radius: 4px; }
         #logout-btn:hover { background: rgba(255,255,255,0.05); color: #f15c6d; }
         
@@ -74,7 +74,12 @@
             background-repeat: no-repeat;
             overscroll-behavior: contain; 
             -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
         }
+
+        .load-more-container { text-align: center; padding: 8px 0; flex-shrink: 0; }
+        .load-more-btn { background: #1f2c34; border: 1px solid #2a3942; color: #00a884; font-size: 0.8rem; padding: 6px 14px; border-radius: 16px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
+        .load-more-btn:hover { background: #253641; }
         
         .msg-wrapper { position: relative; display: flex; flex-direction: column; width: 100%; transition: transform 0.15s ease-out; touch-action: pan-y; }
         .msg { max-width: 85%; padding: 8px 12px; font-size: 0.95rem; line-height: 1.4; word-wrap: break-word; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.2); cursor: pointer; user-select: text; -webkit-user-select: text; transition: background-color 0.4s; }
@@ -122,7 +127,28 @@
         .top-active-text { color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .close-top-bar { background: transparent; border: none; color: #8696a0; font-size: 1.2rem; cursor: pointer; }
 
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: flex; justify-content: center; align-items: center; padding: 16px; box-sizing: border-box; }
+        .modal-content { background: #111b21; width: 100%; max-width: 420px; max-height: 82vh; border-radius: 12px; border: 1px solid #2a3942; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
+        .modal-header { padding: 14px 16px; background: #202c33; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a3942; }
+        .modal-header h3 { margin: 0; font-size: 1rem; color: #00a884; }
+        .media-grid { padding: 14px; overflow-y: auto; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .media-thumb-container { position: relative; aspect-ratio: 1.1; border-radius: 8px; overflow: hidden; background: #1f2c34; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 8px; border: 1px solid #2a3942; }
+        .media-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; cursor: pointer; }
+        .gallery-audio-container { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; gap: 6px; color: #00a884; }
+        .audio-player-mini { width: 100%; height: 32px; border-radius: 4px; }
+        .media-time { position: absolute; bottom: 4px; right: 8px; font-size: 0.65rem; background: rgba(0,0,0,0.75); color: #fff; padding: 2px 5px; border-radius: 4px; }
+        .no-media-text { grid-column: 1 / -1; text-align: center; color: #8696a0; padding: 40px 0; font-size: 0.95rem; }
+
         .input-area-wrapper { display: flex; flex-direction: column; background: #202c33; flex-shrink: 0; }
+        .uploading-banner { background: #00a884; color: #111b21; text-align: center; font-size: 0.8rem; font-weight: bold; padding: 4px; }
+        .uploading-banner.recording { background: #f15c6d; color: #fff; animation: pulse 1.2s infinite; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
         .input-area { display: flex; align-items: flex-end; padding: 8px 10px; gap: 8px; box-sizing: border-box; padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
         
         .input-area textarea { 
@@ -144,9 +170,19 @@
             -webkit-user-select: text; 
         }
 
-        .input-area button { background: #00a884; border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #111b21; fill: #111b21; transition: transform 0.1s; flex-shrink: 0; }
-        .input-area button:active { transform: scale(0.9); }
+        .action-icon-btn { background: transparent; border: none; font-size: 1.25rem; cursor: pointer; padding: 6px; color: #8696a0; display: flex; align-items: center; justify-content: center; transition: color 0.2s; }
+        .action-icon-btn:hover { color: #e9edef; }
+
+        .input-area button.send-submit-btn { background: #00a884; border: none; width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; color: #111b21; fill: #111b21; transition: transform 0.1s; flex-shrink: 0; }
+        .input-area button.send-submit-btn:active { transform: scale(0.9); }
     </style>
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            emailjs.init({ publicKey: "9FD1EZJSd1gRPYywv" });
+        })();
+    </script>
 </head>
 <body>
 
@@ -165,7 +201,7 @@
     <div id="chat-screen" class="container hidden">
         <div class="chat-box">
             <div class="chat-header">
-                <div class="user-info">
+                <div class="user-info" id="header-profile-btn" title="View Shared Media & Voice Notes">
                     <div id="user-avatar" class="avatar">
                         U
                         <div id="online-dot" class="online-dot"></div>
@@ -178,7 +214,21 @@
                 <button id="logout-btn">Log Out</button>
             </div>
             
-            <div id="chat-messages" class="messages-area"></div>
+            <div id="chat-messages" class="messages-area">
+                <div id="load-more-container" class="load-more-container hidden">
+                    <button id="load-more-btn" class="load-more-btn">Load Older Messages</button>
+                </div>
+            </div>
+
+            <div id="media-gallery-modal" class="modal-overlay hidden">
+                <div class="modal-content" id="modal-content-box">
+                    <div class="modal-header">
+                        <h3 id="gallery-title">Shared Files & Media</h3>
+                        <button id="close-gallery-btn" class="close-top-bar">&times;</button>
+                    </div>
+                    <div id="media-grid-container" class="media-grid"></div>
+                </div>
+            </div>
 
             <div class="input-area-wrapper">
                 <div id="reply-bar" class="top-active-bar hidden">
@@ -197,10 +247,12 @@
                     <button id="close-edit-btn" class="close-top-bar">&times;</button>
                 </div>
 
+                <div id="uploading-banner" class="uploading-banner hidden">Processing...</div>
+
                 <div id="chat-form" class="input-area">
                     <textarea id="message-input" placeholder="Type a message" rows="1"></textarea>
-                    <button id="send-btn" type="button">
-                        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M1.101 21.757L23.8 12.028 1.101 2.3 l.011 7.912 13.623 1.816-13.623 1.817z"></path></svg>
+                    <button id="send-btn" class="send-submit-btn" type="button">
+                        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M1.101 21.757L23.8 12.028 1.101 2.3 l.011 7.912 13.623 1.816-13.623 1.817z"></path></svg>
                     </button>
                 </div>
             </div>
@@ -209,7 +261,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, set, update, query, limitToLast, orderByKey, endBefore, get, onChildAdded, serverTimestamp, onDisconnect, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, push, set, update, query, limitToLast, orderByKey, endAt, get, onChildAdded, onChildChanged, serverTimestamp, onValue, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAii2t4g5DuJ7-BLm8v9-syyrtOmyWK8_8",
@@ -224,55 +277,62 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const loginScreen = document.getElementById('login-screen');
-        const chatScreen = document.getElementById('chat-screen');
-        const loginForm = document.getElementById('login-form');
-        const messagesArea = document.getElementById('chat-messages');
-        const userTag = document.getElementById('user-tag');
-        const userAvatar = document.getElementById('user-avatar');
-        const onlineDot = document.getElementById('online-dot');
-        const logoutBtn = document.getElementById('logout-btn');
-        const errorLog = document.getElementById('error-log');
-        const messageInput = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-btn');
-        const typingStatusText = document.getElementById('typing-status');
-        
-        const replyBar = document.getElementById('reply-bar');
-        const replyBarTitle = document.getElementById('reply-bar-title');
-        const replyBarText = document.getElementById('reply-bar-text');
-        const closeReplyBtn = document.getElementById('close-reply-btn');
+        const SUPABASE_URL = "https://mogirffjqlbciwgyiqkx.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_fcn77s414JmfsLxQ95PBbw_O5tnt3Wy";
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const editBar = document.getElementById('edit-bar');
-        const editBarText = document.getElementById('edit-bar-text');
-        const closeEditBtn = document.getElementById('close-edit-btn');
+        const DOM = {
+            loginScreen: document.getElementById('login-screen'),
+            chatScreen: document.getElementById('chat-screen'),
+            loginForm: document.getElementById('login-form'),
+            messagesArea: document.getElementById('chat-messages'),
+            loadMoreContainer: document.getElementById('load-more-container'),
+            loadMoreBtn: document.getElementById('load-more-btn'),
+            userTag: document.getElementById('user-tag'),
+            userAvatar: document.getElementById('user-avatar'),
+            onlineDot: document.getElementById('online-dot'),
+            typingStatusText: document.getElementById('typing-status'),
+            messageInput: document.getElementById('message-input'),
+            uploadingBanner: document.getElementById('uploading-banner'),
+            chatFormDiv: document.getElementById('chat-form'),
+            mediaGalleryModal: document.getElementById('media-gallery-modal'),
+            mediaGridContainer: document.getElementById('media-grid-container'),
+            galleryTitle: document.getElementById('gallery-title'),
+            headerProfileBtn: document.getElementById('header-profile-btn'),
+            closeGalleryBtn: document.getElementById('close-gallery-btn'),
+            replyBar: document.getElementById('reply-bar'),
+            replyBarTitle: document.getElementById('reply-bar-title'),
+            replyBarText: document.getElementById('reply-bar-text'),
+            closeReplyBtn: document.getElementById('close-reply-btn'),
+            editBar: document.getElementById('edit-bar'),
+            editBarText: document.getElementById('edit-bar-text'),
+            closeEditBtn: document.getElementById('close-edit-btn')
+        };
 
         let currentUser = "";
         let otherUser = "";
         let typingTimeout = null;
         let replyingTo = null;
         let editingMsgKey = null;
-        let heartbeatInterval = null;
-        let oldestMessageKey = null;
-        let isLoadingMore = false;
+        let allMessagesCache = new Map(); // Use Map to store message objects for gallery
+        let oldestLoadedKey = null;
+        let hasMoreMessages = true;
         let isInitialLoad = true;
 
-        let otherData = { lastActive: 0, lastSeen: null };
+        let otherData = { isOnline: false, lastSeen: null };
         let otherTyping = false;
+        let currentStatusText = ""; 
+        let isDotActive = false;    
 
-        function scrollToBottom(smooth = false) {
-            messagesArea.scrollTo({
-                top: messagesArea.scrollHeight,
-                behavior: smooth ? 'smooth' : 'auto'
-            });
-        }
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
 
-        loginForm.addEventListener('submit', (e) => {
+        // --- AUTHENTICATION ---
+        DOM.loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            errorLog.innerText = "Authenticating...";
-            
             let rawUser = document.getElementById('username').value.trim().toLowerCase();
             const passVal = document.getElementById('password').value.trim();
-
             if(rawUser.includes('@')) rawUser = rawUser.split('@')[0];
             const userVal = rawUser.replace(/\s+/g, '');
 
@@ -281,255 +341,358 @@
                 otherUser = (currentUser === 'sahil') ? 'shazu' : 'sahil';
                 
                 const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
-                userTag.innerText = capitalizedOther;
-                userAvatar.childNodes[0].nodeValue = capitalizedOther.charAt(0);
+                DOM.userTag.innerText = capitalizedOther;
+                DOM.userAvatar.childNodes[0].nodeValue = capitalizedOther.charAt(0);
                 
-                loginScreen.classList.add('hidden');
-                chatScreen.classList.remove('hidden');
+                DOM.loginScreen.classList.add('hidden');
+                DOM.chatScreen.classList.remove('hidden');
                 
-                startHeartbeat();
-                loadInitialChats();
-                initStatusListeners();
+                setupPresenceEngine();
+                loadChatsStrictOrder();
             } else {
-                errorLog.innerText = "FAIL: Invalid username or password!";
+                document.getElementById('error-log').innerText = "FAIL: Invalid username or password!";
             }
         });
 
-        function startHeartbeat() {
-            const userStatusRef = ref(db, `chats/presence/${currentUser}`);
-            const ping = () => {
-                set(userStatusRef, { lastActive: serverTimestamp(), lastSeen: serverTimestamp() });
-            };
-            ping();
-            heartbeatInterval = setInterval(ping, 4000);
-            onDisconnect(userStatusRef).set({ lastActive: 0, lastSeen: serverTimestamp() });
+        // --- MEDIA BUTTONS INJECTION ---
+        const mediaFileInput = document.createElement('input');
+        mediaFileInput.type = 'file';
+        mediaFileInput.accept = 'image/*,video/*';
+        mediaFileInput.style.display = 'none';
+        document.body.appendChild(mediaFileInput);
+
+        const attachBtn = document.createElement('button');
+        attachBtn.type = 'button';
+        attachBtn.className = 'action-icon-btn';
+        attachBtn.title = "Share Media";
+        attachBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="#8696a0"><path d="M1.816 15.556v.002c0 3.314 2.686 6 6 6h8c3.314 0 6-2.686 6-6V8.342c0-2.427-1.972-4.4-4.4-4.4s-4.4 1.973-4.4 4.4v7.214c0 1.103.897 2 2 2s2-.897 2-2V8.442h2v7.114c0 2.209-1.791 4-4 4s-4-1.791-4-4V8.342c0-3.534 2.866-6.4 6.4-6.4s6.4 2.866 6.4 6.4v7.216c0 4.418-3.582 8-8 8s-8-3.582-8-8v-7.14h2v7.14z"></path></svg>`;
+        DOM.chatFormDiv.insertBefore(attachBtn, DOM.messageInput);
+
+        const micBtn = document.createElement('button');
+        micBtn.type = 'button';
+        micBtn.className = 'action-icon-btn';
+        micBtn.title = "Record Voice Note";
+        micBtn.innerHTML = `🎙️`;
+        DOM.chatFormDiv.insertBefore(micBtn, DOM.messageInput);
+
+        // --- PRESENCE ENGINE (LAG & GLITCH FREE) ---
+        function setupPresenceEngine() {
+            const connectedRef = ref(db, ".info/connected");
+            const myStatusRef = ref(db, `chats/presence/${currentUser}`);
+
+            onValue(connectedRef, (snap) => {
+                if (snap.val() === true) {
+                    onDisconnect(myStatusRef).set({
+                        isOnline: false,
+                        lastSeen: serverTimestamp()
+                    }).then(() => {
+                        set(myStatusRef, {
+                            isOnline: true,
+                            lastSeen: serverTimestamp()
+                        });
+                    });
+                }
+            });
+
+            const otherStatusRef = ref(db, `chats/presence/${otherUser}`);
+            onValue(otherStatusRef, (snapshot) => {
+                otherData = snapshot.val() || { isOnline: false, lastSeen: null };
+                updateUIState();
+            });
+
+            const typingRef = ref(db, `chats/typing_status/${otherUser}`);
+            onValue(typingRef, (snapshot) => {
+                otherTyping = snapshot.val() ? snapshot.val().isTyping : false;
+                updateUIState();
+            });
+            
+            setInterval(updateUIState, 10000); 
         }
 
-        function initStatusListeners() {
-            onValue(ref(db, `chats/presence/${otherUser}`), (snap) => {
-                otherData = snap.val() || { lastActive: 0, lastSeen: null };
-                updateHeaderDisplay();
-            });
-            onValue(ref(db, `chats/typing_status/${otherUser}`), (snap) => {
-                otherTyping = snap.val() ? snap.val().isTyping : false;
-                updateHeaderDisplay();
-            });
-            setInterval(updateHeaderDisplay, 1000);
-        }
-
-        function updateHeaderDisplay() {
-            const capitalizedOther = otherUser.charAt(0).toUpperCase() + otherUser.slice(1);
-            const isOnlineNow = (Date.now() - (otherData.lastActive || 0)) < 8000;
+        function updateUIState() {
+            let newText = "";
+            let newDotState = false;
 
             if (otherTyping) {
-                onlineDot.classList.add('active');
-                typingStatusText.innerText = "typing...";
-            } else if (isOnlineNow) {
-                onlineDot.classList.add('active');
-                typingStatusText.innerText = "Online";
+                newText = "typing...";
+                newDotState = true;
+            } else if (otherData.isOnline) {
+                newText = "Online";
+                newDotState = true;
             } else {
-                onlineDot.classList.remove('active');
-                if (currentUser === 'sahil' && otherData.lastSeen) {
-                    const timeStr = new Date(otherData.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    typingStatusText.innerText = `Last seen today at ${timeStr}`;
+                if (otherData.lastSeen) {
+                    const lastSeenDate = new Date(otherData.lastSeen);
+                    if (!isNaN(lastSeenDate.getTime())) {
+                        const timeStr = lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        const isToday = new Date().toDateString() === lastSeenDate.toDateString();
+                        newText = isToday ? `Last seen today at ${timeStr}` : `Last seen ${lastSeenDate.toLocaleDateString()} at ${timeStr}`;
+                    } else {
+                        newText = "Offline";
+                    }
                 } else {
-                    typingStatusText.innerText = "";
+                    newText = "Offline";
                 }
+            }
+
+            if (newText !== currentStatusText) {
+                DOM.typingStatusText.innerText = newText;
+                currentStatusText = newText;
+            }
+            if (newDotState !== isDotActive) {
+                newDotState ? DOM.onlineDot.classList.add('active') : DOM.onlineDot.classList.remove('active');
+                isDotActive = newDotState;
             }
         }
 
-        // INITIAL LOAD: Load last 20 messages instantly without lagging server
-        function loadInitialChats() {
-            const messagesRef = query(ref(db, 'chats/main_session'), limitToLast(20));
+        // --- EMAIL NOTIFICATION ---
+        async function sendEmailNotification(senderName, messageText) {
+            try {
+                const templateParams = { to_name: otherUser, from_name: senderName, message: messageText };
+                await emailjs.send('service_duqxm87', 'template_jr2139k', templateParams);
+            } catch (error) {
+                console.error("Email notification failed:", error);
+            }
+        }
+
+        // --- MESSAGE ENGINE (STRICT ORDERING) ---
+        function loadChatsStrictOrder() {
+            const messagesRef = ref(db, 'chats/main_session');
+            const recentQuery = query(messagesRef, orderByKey(), limitToLast(20));
+
+            get(recentQuery).then((snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    const keys = Object.keys(data).sort(); 
+                    oldestLoadedKey = keys[0];
+                    if (keys.length < 20) {
+                        hasMoreMessages = false;
+                        DOM.loadMoreContainer.classList.add('hidden');
+                    } else {
+                        DOM.loadMoreContainer.classList.remove('hidden');
+                    }
+
+                    const frag = document.createDocumentFragment();
+                    keys.forEach(key => {
+                        const el = createMessageElement(key, data[key]);
+                        if(el) frag.appendChild(el);
+                    });
+                    DOM.messagesArea.appendChild(frag);
+                    scrollToBottom(false);
+                } else {
+                    hasMoreMessages = false;
+                }
+                isInitialLoad = false;
+                listenForNewMessages(messagesRef);
+            });
+        }
+
+        function listenForNewMessages(messagesRef) {
+            onChildAdded(messagesRef, (snapshot) => {
+                if (isInitialLoad) return; 
+                const key = snapshot.key;
+                
+                if (!allMessagesCache.has(key)) {
+                    if (oldestLoadedKey && key < oldestLoadedKey) return; 
+                    
+                    const msg = snapshot.val();
+                    const el = createMessageElement(key, msg);
+                    if (el) {
+                        DOM.messagesArea.appendChild(el);
+                        scrollToBottom(true);
+                    }
+                }
+            });
+
+            onChildChanged(messagesRef, (snapshot) => {
+                const key = snapshot.key;
+                const msg = snapshot.val();
+                if (!allMessagesCache.has(key)) return;
+                
+                allMessagesCache.set(key, msg); // Update cache for gallery
+
+                const textP = document.getElementById('text-content-' + key);
+                if (textP && msg.type === 'text' && textP.textContent !== msg.text) textP.textContent = msg.text;
+
+                const ticksSpan = document.getElementById('ticks-' + key);
+                if (ticksSpan && msg.status === 'seen') ticksSpan.classList.add('seen');
+
+                updateReaction(key, msg.reaction);
+            });
+        }
+
+        DOM.loadMoreBtn.addEventListener('click', () => {
+            if (!hasMoreMessages || !oldestLoadedKey) return;
+            DOM.loadMoreBtn.innerText = "Loading...";
             
-            get(messagesRef).then((snapshot) => {
+            const olderQuery = query(ref(db, 'chats/main_session'), orderByKey(), endAt(oldestLoadedKey), limitToLast(20));
+            get(olderQuery).then((snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     const keys = Object.keys(data).sort();
-                    oldestMessageKey = keys[0];
-
-                    keys.forEach(key => {
-                        if(key !== 'secret_key') renderMessageNode(key, data[key], false);
-                    });
-
-                    if (isInitialLoad) {
-                        scrollToBottom(false);
-                        isInitialLoad = false;
+                    if (keys.length <= 1) {
+                        hasMoreMessages = false;
+                        DOM.loadMoreContainer.classList.add('hidden');
+                        return;
                     }
-                }
-                listenForNewMessages();
-            });
 
-            // Scroll up pagination
-            messagesArea.addEventListener('scroll', () => {
-                if (messagesArea.scrollTop <= 20 && !isLoadingMore) {
-                    loadOlderChats();
-                }
-            });
-        }
+                    oldestLoadedKey = keys[0];
+                    let currentScrollHeight = DOM.messagesArea.scrollHeight;
+                    const frag = document.createDocumentFragment();
 
-        // REAL-TIME LISTENER: Listen for live new messages at bottom
-        function listenForNewMessages() {
-            const messagesRef = query(ref(db, 'chats/main_session'), limitToLast(1));
-            onChildAdded(messagesRef, (snapshot) => {
-                if (isInitialLoad) return;
-                const key = snapshot.key;
-                const msg = snapshot.val();
-                if (key === 'secret_key') return;
-
-                let existing = document.getElementById('wrapper-' + key);
-                if (!existing) {
-                    renderMessageNode(key, msg, false);
-                    scrollToBottom(true);
-                }
-            });
-        }
-
-        // PAGINATION: Load older 15 messages when scrolling up
-        async function loadOlderChats() {
-            if (!oldestMessageKey || isLoadingMore) return;
-            isLoadingMore = true;
-
-            const oldQuery = query(ref(db, 'chats/main_session'), orderByKey(), endBefore(oldestMessageKey), limitToLast(15));
-            const snapshot = await get(oldQuery);
-            const data = snapshot.val();
-
-            if (data) {
-                const keys = Object.keys(data).sort();
-                oldestMessageKey = keys[0];
-                const previousHeight = messagesArea.scrollHeight;
-
-                keys.reverse().forEach(key => {
-                    if (key !== 'secret_key' && !document.getElementById('wrapper-' + key)) {
-                        renderMessageNode(key, data[key], true);
+                    for (let i = 0; i < keys.length - 1; i++) {
+                        let key = keys[i];
+                        if (!allMessagesCache.has(key)) {
+                            const el = createMessageElement(key, data[key]);
+                            if(el) frag.appendChild(el);
+                        }
                     }
-                });
 
-                messagesArea.scrollTop = messagesArea.scrollHeight - previousHeight;
-            }
-            isLoadingMore = false;
-        }
+                    DOM.loadMoreContainer.after(frag);
+                    DOM.messagesArea.scrollTop = DOM.messagesArea.scrollHeight - currentScrollHeight;
+                    DOM.loadMoreBtn.innerText = "Load Older Messages";
+                } else {
+                    hasMoreMessages = false;
+                    DOM.loadMoreContainer.classList.add('hidden');
+                }
+            });
+        });
 
-        function renderMessageNode(key, msg, prepend = false) {
-            if (document.getElementById('wrapper-' + key)) return;
+        function createMessageElement(key, msg) {
+            if (key === 'secret_key' || allMessagesCache.has(key)) return null;
+            allMessagesCache.set(key, msg); // Cache added
+
             const isMe = msg.sender === currentUser;
-            
             if (!isMe && msg.status !== 'seen') {
                 update(ref(db, `chats/main_session/${key}`), { status: 'seen' });
             }
 
-            const msgWrapper = document.createElement('div');
-            msgWrapper.id = 'wrapper-' + key;
-            msgWrapper.classList.add('msg-wrapper', isMe ? 'me' : 'other');
+            const wrapper = document.createElement('div');
+            wrapper.id = 'wrapper-' + key;
+            wrapper.className = `msg-wrapper ${isMe ? 'me' : 'other'}`;
 
             const msgDiv = document.createElement('div');
             msgDiv.id = 'msg-' + key;
-            msgDiv.classList.add('msg', isMe ? 'me' : 'other');
+            msgDiv.className = `msg ${isMe ? 'me' : 'other'}`;
             
+            // Swipe to reply logic
             let startX = 0, currentX = 0, isDragging = false;
             msgDiv.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; isDragging = true; }, {passive: true});
             msgDiv.addEventListener('touchmove', (e) => {
                 if (!isDragging) return;
                 currentX = e.touches[0].clientX;
                 let diff = currentX - startX;
-                if (diff > 0 && diff < 80) msgWrapper.style.transform = `translateX(${diff}px)`;
+                if (diff > 0 && diff < 80) wrapper.style.transform = `translateX(${diff}px)`;
             }, {passive: true});
             msgDiv.addEventListener('touchend', () => {
                 if (!isDragging) return;
                 isDragging = false;
                 let diff = currentX - startX;
-                msgWrapper.style.transform = 'translateX(0px)';
+                wrapper.style.transform = 'translateX(0px)';
                 if (diff > 45) setReplyingTo(key, msg);
             });
 
+            // Reply Box UI
             if (msg.replyTo) {
                 const replyBox = document.createElement('div');
-                replyBox.classList.add('replied-preview-box');
+                replyBox.className = 'replied-preview-box';
+                replyBox.title = "Click to jump to original message";
+                
                 const replyAuthor = document.createElement('span');
-                replyAuthor.classList.add('replied-author');
+                replyAuthor.className = 'replied-author';
                 replyAuthor.textContent = msg.replyTo.sender.charAt(0).toUpperCase() + msg.replyTo.sender.slice(1);
+                
                 const replyText = document.createElement('div');
-                replyText.classList.add('replied-text');
+                replyText.className = 'replied-text';
                 replyText.textContent = msg.replyTo.text;
+                
                 replyBox.appendChild(replyAuthor);
                 replyBox.appendChild(replyText);
-                
                 replyBox.onclick = (e) => {
                     e.stopPropagation();
                     const targetMsg = document.getElementById('msg-' + msg.replyTo.key);
                     if (targetMsg) {
                         targetMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         targetMsg.style.backgroundColor = isMe ? '#007a63' : '#324652';
-                        setTimeout(() => {
-                            targetMsg.style.backgroundColor = isMe ? '#005c4b' : '#202c33';
-                        }, 1000);
+                        setTimeout(() => targetMsg.style.backgroundColor = isMe ? '#005c4b' : '#202c33', 1000);
                     }
                 };
                 msgDiv.appendChild(replyBox);
             }
 
+            // Sender Name
             const senderSpan = document.createElement('span');
-            senderSpan.classList.add('sender');
+            senderSpan.className = 'sender';
             senderSpan.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
-            
+            msgDiv.appendChild(senderSpan);
+
+            // Content
             const textP = document.createElement('p');
             textP.style.margin = '0';
-            textP.style.fontSize = '0.95rem';
-            textP.style.whiteSpace = 'pre-wrap';
-            textP.textContent = msg.text;
-            
-            msgDiv.appendChild(senderSpan);
+            textP.id = 'text-content-' + key;
+
+            if (msg.type === 'image') {
+                textP.innerHTML = `<img src="${msg.text}" style="max-width:100%; border-radius:6px; cursor:pointer;" onclick="window.open('${msg.text}', '_blank')">`;
+            } else if (msg.type === 'video') {
+                textP.innerHTML = `<video src="${msg.text}" controls style="max-width:100%; border-radius:6px;"></video>`;
+            } else if (msg.type === 'audio') {
+                textP.innerHTML = `<audio src="${msg.text}" controls style="width:220px; height:36px;"></audio>`;
+            } else {
+                textP.style.fontSize = '0.95rem';
+                textP.style.whiteSpace = 'pre-wrap';
+                textP.textContent = msg.text;
+            }
             msgDiv.appendChild(textP);
 
+            // Footer
             const footerDiv = document.createElement('div');
-            footerDiv.classList.add('msg-footer');
+            footerDiv.className = 'msg-footer';
+            
             if (msg.edited) {
                 const editedSpan = document.createElement('span');
-                editedSpan.classList.add('edited-tag');
+                editedSpan.className = 'edited-tag';
                 editedSpan.textContent = 'edited';
                 footerDiv.appendChild(editedSpan);
             }
 
             let timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
-            const timeSpan = document.createElement('span');
-            timeSpan.id = 'time-' + key;
-            timeSpan.textContent = timeStr;
-            footerDiv.appendChild(timeSpan);
+            footerDiv.innerHTML += `<span>${timeStr}</span>`;
 
             if (isMe) {
-                const ticksSpan = document.createElement('span');
-                ticksSpan.id = 'ticks-' + key;
-                ticksSpan.classList.add('ticks');
-                ticksSpan.textContent = '✓✓';
-                if (msg.status === 'seen') ticksSpan.classList.add('seen');
-                footerDiv.appendChild(ticksSpan);
+                const ticks = document.createElement('span');
+                ticks.id = 'ticks-' + key;
+                ticks.className = `ticks ${msg.status === 'seen' ? 'seen' : ''}`;
+                ticks.textContent = '✓✓';
+                footerDiv.appendChild(ticks);
             }
-            
             msgDiv.appendChild(footerDiv);
-            msgWrapper.appendChild(msgDiv);
+            wrapper.appendChild(msgDiv);
 
-            if (prepend) {
-                messagesArea.insertBefore(msgWrapper, messagesArea.firstChild);
-            } else {
-                messagesArea.appendChild(msgWrapper);
-            }
-
+            // Menu
             msgDiv.addEventListener('click', (e) => {
                 e.stopPropagation();
                 toggleActionMenu(key, msg, msgDiv, isMe);
             });
+
+            return wrapper;
+        }
+
+        function scrollToBottom(smooth = false) {
+            setTimeout(() => {
+                DOM.messagesArea.scrollTo({
+                    top: DOM.messagesArea.scrollHeight,
+                    behavior: smooth ? 'smooth' : 'auto'
+                });
+            }, 50); 
         }
 
         function toggleActionMenu(msgKey, msgData, msgDiv, isMe) {
             document.querySelectorAll('.action-menu').forEach(m => m.remove());
             const menu = document.createElement('div');
-            menu.classList.add('action-menu');
+            menu.className = 'action-menu';
             
             const emojiGrid = document.createElement('div');
-            emojiGrid.classList.add('emoji-grid');
-            const emojisList = ['❤️', '👍', '😂', '🔥', '😢', '😍', '👏', '🙏', '🎉', '😡', '🤔', '😎', '✨', '💯', '🥳', '👀'];
-            
-            emojisList.forEach(emoji => {
+            emojiGrid.className = 'emoji-grid';
+            ['❤️', '👍', '😂', '🔥', '😢', '😍', '👏', '🙏', '🎉', '😡', '🤔', '😎', '✨', '💯', '🥳', '👀'].forEach(emoji => {
                 const span = document.createElement('span');
                 span.textContent = emoji;
                 span.onclick = async (e) => {
@@ -542,18 +705,26 @@
             });
             menu.appendChild(emojiGrid);
 
-            if (isMe) {
+            if (isMe && msgData.type === 'text') {
                 const editBtn = document.createElement('button');
-                editBtn.classList.add('menu-btn');
+                editBtn.className = 'menu-btn';
                 editBtn.innerHTML = "✏️ Edit";
-                editBtn.onclick = (e) => { e.stopPropagation(); setEditingMsg(msgKey, msgData.text); menu.remove(); };
+                editBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    setEditingMsg(msgKey, msgData.text);
+                    menu.remove();
+                };
                 menu.appendChild(editBtn);
             }
 
             const replyBtn = document.createElement('button');
-            replyBtn.classList.add('menu-btn');
+            replyBtn.className = 'menu-btn';
             replyBtn.innerHTML = "↩ Reply";
-            replyBtn.onclick = (e) => { e.stopPropagation(); setReplyingTo(msgKey, msgData); menu.remove(); };
+            replyBtn.onclick = (e) => {
+                e.stopPropagation();
+                setReplyingTo(msgKey, msgData);
+                menu.remove();
+            };
             menu.appendChild(replyBtn);
 
             msgDiv.appendChild(menu);
@@ -562,83 +733,267 @@
 
         function setReplyingTo(msgKey, msg) {
             cancelTopBars();
-            replyingTo = { key: msgKey, sender: msg.sender, text: msg.text };
-            replyBarTitle.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
-            replyBarText.textContent = msg.text;
-            replyBar.classList.remove('hidden');
+            replyingTo = { key: msgKey, sender: msg.sender, text: msg.type === 'text' ? msg.text : `[${msg.type}]` };
+            DOM.replyBarTitle.textContent = msg.sender.charAt(0).toUpperCase() + msg.sender.slice(1);
+            DOM.replyBarText.textContent = replyingTo.text;
+            DOM.replyBar.classList.remove('hidden');
         }
 
         function setEditingMsg(msgKey, text) {
             cancelTopBars();
             editingMsgKey = msgKey;
-            messageInput.value = text;
-            editBarText.textContent = text;
-            editBar.classList.remove('hidden');
-            messageInput.style.height = 'auto';
-            messageInput.style.height = (messageInput.scrollHeight - 6) + 'px';
+            DOM.messageInput.value = text;
+            DOM.editBarText.textContent = text;
+            DOM.editBar.classList.remove('hidden');
+            DOM.messageInput.style.height = 'auto';
+            DOM.messageInput.style.height = (DOM.messageInput.scrollHeight - 6) + 'px';
+            DOM.messageInput.focus();
         }
 
         function cancelTopBars() {
             replyingTo = null;
             editingMsgKey = null;
-            replyBar.classList.add('hidden');
-            editBar.classList.add('hidden');
+            DOM.replyBar.classList.add('hidden');
+            DOM.editBar.classList.add('hidden');
         }
 
-        closeReplyBtn.addEventListener('click', cancelTopBars);
-        closeEditBtn.addEventListener('click', () => { cancelTopBars(); messageInput.value = ""; messageInput.style.height = 'auto'; });
-
-        messageInput.addEventListener('input', () => {
-            messageInput.style.height = 'auto';
-            messageInput.style.height = (messageInput.scrollHeight - 6) + 'px';
-            setTypingStatus(true);
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => { setTypingStatus(false); }, 2000); 
+        DOM.closeReplyBtn.addEventListener('click', cancelTopBars);
+        DOM.closeEditBtn.addEventListener('click', () => {
+            cancelTopBars();
+            DOM.messageInput.value = "";
+            DOM.messageInput.style.height = 'auto';
         });
 
-        async function setTypingStatus(isTyping) {
-            if (!currentUser) return;
-            await set(ref(db, `chats/typing_status/${currentUser}`), { isTyping, secret_key: "SahilCodeLabSecret2026" });
+        // --- ACTIONS, TYPING & SENDING ---
+        function updateReaction(key, reaction) {
+            const wrapper = document.getElementById('wrapper-' + key);
+            if (!wrapper) return;
+            let rxnDiv = wrapper.querySelector('.reaction-container');
+            if (reaction) {
+                if (!rxnDiv) {
+                    rxnDiv = document.createElement('div');
+                    rxnDiv.className = 'reaction-container';
+                    rxnDiv.onclick = async (e) => { e.stopPropagation(); await update(ref(db, `chats/main_session/${key}`), { reaction: null }); };
+                    wrapper.querySelector('.msg').appendChild(rxnDiv);
+                }
+                rxnDiv.textContent = reaction;
+            } else if (rxnDiv) {
+                rxnDiv.remove();
+            }
+        }
+
+        DOM.messageInput.addEventListener('input', () => {
+            DOM.messageInput.style.height = 'auto';
+            DOM.messageInput.style.height = (DOM.messageInput.scrollHeight - 6) + 'px';
+
+            setTyping(true);
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => setTyping(false), 1500); 
+        });
+
+        async function setTyping(isTyping) {
+            if (currentUser) {
+                await set(ref(db, `chats/typing_status/${currentUser}`), { isTyping, secret_key: "SahilCodeLab" });
+            }
         }
 
         async function handleSendMessage() {
-            const text = messageInput.value.trim();
+            const text = DOM.messageInput.value.trim();
             if (!text) return;
 
-            messageInput.value = "";
-            messageInput.style.height = '22px';
-            setTypingStatus(false); 
+            setTyping(false);
 
             if (editingMsgKey) {
-                await update(ref(db, `chats/main_session/${editingMsgKey}`), { text: text, edited: true, secret_key: "SahilCodeLabSecret2026" });
+                await update(ref(db, `chats/main_session/${editingMsgKey}`), { text: text, edited: true, secret_key: "SahilCodeLab" });
             } else {
-                let messagePayload = { sender: currentUser, text: text, status: 'sent', timestamp: serverTimestamp(), secret_key: "SahilCodeLabSecret2026" };
-                if (replyingTo) messagePayload.replyTo = replyingTo;
-                await push(ref(db, `chats/main_session`), messagePayload);
+                let payload = {
+                    sender: currentUser, text: text, type: 'text', status: 'sent',
+                    timestamp: serverTimestamp(), secret_key: "SahilCodeLab"
+                };
+                if (replyingTo) payload.replyTo = replyingTo;
+
+                await push(ref(db, `chats/main_session`), payload);
+                sendEmailNotification(currentUser, text);
             }
+
+            DOM.messageInput.value = "";
+            DOM.messageInput.style.height = 'auto';
+            DOM.messageInput.blur();
+            setTimeout(() => DOM.messageInput.value = "", 50);
 
             cancelTopBars();
             scrollToBottom(true);
         }
 
-        sendBtn.addEventListener('pointerdown', (e) => {
+        document.getElementById('send-btn').addEventListener('pointerdown', (e) => {
             e.preventDefault();
             handleSendMessage();
         });
-
-        messageInput.addEventListener('keydown', (e) => {
+        
+        DOM.messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleSendMessage();
             }
         });
 
-        logoutBtn.addEventListener('click', async () => {
-            clearInterval(heartbeatInterval);
-            await setTypingStatus(false);
-            await set(ref(db, `chats/presence/${currentUser}`), { lastActive: 0, lastSeen: serverTimestamp() });
+        // --- MEDIA UPLOAD (SUPABASE) ---
+        attachBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            mediaFileInput.click();
+        });
+
+        mediaFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            DOM.uploadingBanner.innerText = "Uploading media...";
+            DOM.uploadingBanner.classList.remove('hidden');
+            const fileName = `${Date.now()}_${file.name}`;
+
+            const { data, error } = await supabase.storage.from('media-store').upload(fileName, file, { cacheControl: '3600', upsert: false });
+            if (error) {
+                alert("Upload Failed: " + error.message);
+                DOM.uploadingBanner.classList.add('hidden');
+                return;
+            }
+
+            const { data: publicURLData } = supabase.storage.from('media-store').getPublicUrl(fileName);
+            const mediaUrl = publicURLData.publicUrl;
+            const isVideo = file.type.startsWith('video');
+
+            let payload = {
+                sender: currentUser, text: mediaUrl, type: isVideo ? 'video' : 'image', status: 'sent',
+                timestamp: serverTimestamp(), secret_key: "SahilCodeLab"
+            };
+            if (replyingTo) payload.replyTo = replyingTo;
+
+            await push(ref(db, `chats/main_session`), payload);
+            sendEmailNotification(currentUser, `[Shared a ${isVideo ? 'video' : 'image'}]`);
+
+            mediaFileInput.value = "";
+            DOM.uploadingBanner.classList.add('hidden');
+            cancelTopBars();
+            scrollToBottom(true);
+        });
+
+        micBtn.addEventListener('pointerdown', async (e) => {
+            e.preventDefault();
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const options = { mimeType: 'audio/webm;codecs=opus' };
+                    mediaRecorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(options.mimeType) ? options : {});
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => { if (event.data.size > 0) audioChunks.push(event.data); };
+                    mediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        DOM.uploadingBanner.innerText = "Sending voice note...";
+                        DOM.uploadingBanner.classList.remove('hidden');
+                        
+                        const fileName = `${Date.now()}_voice.webm`;
+                        const { error } = await supabase.storage.from('media-store').upload(fileName, audioBlob, { cacheControl: '3600', upsert: false });
+
+                        if (error) {
+                            alert("Voice Upload Failed: " + error.message);
+                            DOM.uploadingBanner.classList.add('hidden');
+                            return;
+                        }
+
+                        const { data: publicURLData } = supabase.storage.from('media-store').getPublicUrl(fileName);
+                        let payload = {
+                            sender: currentUser, text: publicURLData.publicUrl, type: 'audio', status: 'sent',
+                            timestamp: serverTimestamp(), secret_key: "SahilCodeLab"
+                        };
+                        if (replyingTo) payload.replyTo = replyingTo;
+
+                        await push(ref(db, `chats/main_session`), payload);
+                        sendEmailNotification(currentUser, "[Shared a Voice Note]");
+                        
+                        DOM.uploadingBanner.classList.add('hidden');
+                        cancelTopBars();
+                        scrollToBottom(true);
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start(250);
+                    isRecording = true;
+                    micBtn.style.color = '#f15c6d';
+                    DOM.uploadingBanner.innerText = "🔴 Recording... Tap mic again to send.";
+                    DOM.uploadingBanner.classList.remove('hidden');
+                    DOM.uploadingBanner.classList.add('recording');
+                } catch (err) { alert("Microphone permission denied."); }
+            } else {
+                if (mediaRecorder && isRecording) {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    micBtn.style.color = '#8696a0';
+                    DOM.uploadingBanner.classList.remove('recording');
+                    DOM.uploadingBanner.classList.add('hidden');
+                }
+            }
+        });
+
+        // --- MEDIA GALLERY LOGIC ---
+        DOM.headerProfileBtn.addEventListener('click', () => {
+            renderMediaGallery();
+            DOM.mediaGalleryModal.classList.remove('hidden');
+        });
+
+        DOM.closeGalleryBtn.addEventListener('click', () => DOM.mediaGalleryModal.classList.add('hidden'));
+        DOM.mediaGalleryModal.addEventListener('click', (e) => { if (e.target === DOM.mediaGalleryModal) DOM.mediaGalleryModal.classList.add('hidden'); });
+
+        function renderMediaGallery() {
+            DOM.mediaGridContainer.innerHTML = "";
+            let items = [];
+            allMessagesCache.forEach((m, k) => {
+                if (k !== 'secret_key' && (m.type === 'image' || m.type === 'video' || m.type === 'audio')) {
+                    items.push({ key: k, ...m });
+                }
+            });
+
+            DOM.galleryTitle.textContent = `Shared Files & Media (${items.length})`;
+            if (items.length === 0) {
+                DOM.mediaGridContainer.innerHTML = `<p class="no-media-text">No photos, videos or voice notes shared yet.</p>`;
+                return;
+            }
+
+            items.forEach(item => {
+                const thumbDiv = document.createElement('div');
+                thumbDiv.className = 'media-thumb-container';
+                let timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "";
+
+                if (item.type === 'video') {
+                    const vid = document.createElement('video');
+                    vid.src = item.text; vid.className = 'media-thumb'; vid.controls = true;
+                    thumbDiv.appendChild(vid);
+                } else if (item.type === 'audio') {
+                    const audioBox = document.createElement('div');
+                    audioBox.className = 'gallery-audio-container';
+                    audioBox.innerHTML = `<span style="font-size:0.7rem; font-weight:bold;">🎙️ Voice Note</span><audio src="${item.text}" controls class="audio-player-mini"></audio>`;
+                    thumbDiv.appendChild(audioBox);
+                } else {
+                    const img = document.createElement('img');
+                    img.src = item.text; img.className = 'media-thumb';
+                    img.onclick = () => window.open(item.text, '_blank');
+                    thumbDiv.appendChild(img);
+                }
+
+                const timeBadge = document.createElement('span');
+                timeBadge.className = 'media-time';
+                timeBadge.textContent = timeStr;
+                thumbDiv.appendChild(timeBadge);
+                DOM.mediaGridContainer.appendChild(thumbDiv);
+            });
+        }
+
+        document.getElementById('logout-btn').addEventListener('click', async () => {
+            await setTyping(false);
+            await set(ref(db, `chats/presence/${currentUser}`), { isOnline: false, lastSeen: serverTimestamp() });
             location.reload();
         });
+
     </script>
 </body>
 </html>
