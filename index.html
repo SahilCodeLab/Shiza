@@ -135,19 +135,44 @@
         .primary-login-btn:hover {
             background: #1e40af;
         }
-
-        #error-log {
-            color: #ef4444;
-            margin-top: 12px;
-            font-size: 0.875rem;
-        }
-    </style>
+    /* Dark mode overrides */
+.dark-mode body {
+    background: #111827;
+    color: #f3f5f8;
+}
+.dark-mode .container,
+.dark-mode .login-card {
+    background: #1f2937;
+    color: #f3f5f8;
+}
+.dark-mode .primary-login-btn {
+    background: #2563eb;
+    color: #fff;
+}
+.dark-mode input,
+.dark-mode textarea {
+    background: #374151;
+    color: #f3f5f8;
+    border-color: #4b5563;
+}
+.dark-mode .msg.other {
+    background: #374151;
+    color: #f3f5f8;
+}
+.dark-mode .msg.me {
+    background: linear-gradient(135deg, #4ba2e8, #2563eb);
+    color: #fff;
+}
+</style>
 </head>
 
 <body>
     <div class="app-wrapper">
         <div id="login-screen" class="container login-screen">
             <div class="login-card">
+                <div class="header-actions">
+                    <button id="dark-mode-toggle" class="icon-action-btn" title="Toggle Dark Mode">🌙</button>
+                </div>
                 <div class="login-app-icon">
                     <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
                         <path
@@ -203,10 +228,7 @@
             let rawUser = document.getElementById('username').value.trim().toLowerCase();
             const passVal = document.getElementById('password').value.trim();
             if (rawUser.includes('@')) rawUser = rawUser.split('@')[0];
-
-            // Corrected space removal logic
-            const userVal = rawUser.replace(/\s+/g, '');
-
+            const userVal = rawUser.replace(/\\s+/g, '');
             if ((userVal === 'sahil' && passVal === 'sahil1234') || (userVal === 'shazu' && passVal === 'shazu1234')) {
                 localStorage.setItem('active_chat_user', userVal);
                 window.location.href = 'chat.html';
@@ -215,6 +237,24 @@
             }
         });
     </script>
+<script>
+    // Initialize theme based on localStorage
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+        const toggleBtn = document.getElementById('dark-mode-toggle');
+        if (toggleBtn) toggleBtn.textContent = '☀️';
+    }
+    // Toggle dark mode
+    document.addEventListener('click', function (e) {
+        if (e.target && e.target.id === 'dark-mode-toggle') {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            e.target.textContent = isDark ? '☀️' : '🌙';
+        }
+    });
+</script>
 </body>
 
 </html>
