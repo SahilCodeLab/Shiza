@@ -231,7 +231,7 @@
             const userVal = rawUser.replace(/\\s+/g, '');
             if ((userVal === 'sahil' && passVal === 'sahil1234') || (userVal === 'shazu' && passVal === 'shazu1234')) {
                 localStorage.setItem('active_chat_user', userVal);
-                window.location.href = 'chat.html';
+                window.location.href = 'php.html';
             } else {
                 document.getElementById('error-log').innerText = "Invalid username or password!";
             }
